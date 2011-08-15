@@ -5,15 +5,13 @@ from pyopencl import mem_flags as mf #@UnusedImport
 import numpy as np
 
 #ctx = pyopencl.create_some_context(interactive=False)
-ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[0]])
+ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[1]])
 queue = pyopencl.CommandQueue(ctx)
 mf = pyopencl.mem_flags
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
 
-#  Basic lookup path is in the directory containing this file, in CWD/rpc
-_mydir = os.path.split(__file__)[0]
 directories = [".","rpc","interfaces"]
 mylookup = TemplateLookup(directories=directories)
 
@@ -143,9 +141,7 @@ def loadProgram(source, debug=False,**context):
 from interfaces import *
 if __name__ == "__main__":
     print "Interface search path", directories
-    interfaces = [(boundedmedian, dict(maxbuf=31, steps=[3,5,7,9,11,15,19,25,31])),
-                  (convolve, dict(name="convolve", conv=[1,2,3,4,3,2,1])),
-                  (applysegments, dict(name="applysegments", steps=[3,5,8,13,21,31],maxbuf=31)),
+    interfaces = [(convolve, dict(name="convolve", conv=[1,2,3,4,3,2,1])),
                   (hmedian, dict(name="hmedian", width=5, steps=[5])),
                   (median3x3, dict(steps=[9], width=9)),
                   (gradient, {}),

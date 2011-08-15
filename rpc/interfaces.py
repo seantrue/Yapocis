@@ -3,11 +3,6 @@ Created on Aug 12, 2011
 
 @author: seant
 '''
-boundedmedian = """
-    interface boundedmedian {
-         kernel boundedmedian(in int32 offset, in float32 *input, in int32 *zcs, out float32 *output, out int16 *trace);
-      };
-"""
 convolve = """
     interface convolve {
         kernel ${name}(in int32 width, in float32* a, out float32* ret);
@@ -21,12 +16,6 @@ convolves = """
     };
 """
 
-applysegments = """
-    interface applysegments {
-        kernel applysegments(in int32 *segments,  in int32 width,  in int32 height, in float32 maxval, in float32 *img, out float32 *output);
-        };
-""" 
-
 hmedian = """
     interface hmedian {
         kernel ${name}(in int32 width, in float32* a, out float32* ret );
@@ -39,6 +28,7 @@ median3x3 = """
     };
 """
 
+# Two definitions for hsi: One returns by reference, other is a pythonic return
 oldhsi = """
     interface hsi {
         kernel rgb2hsi(in float32 *r, in float32 *g, in float32 *b, out float32 *h, out float32 * s, out float32 *i);

@@ -1,6 +1,6 @@
 '''
 Created on Jul 21, 2011
-@summary: Test CL kernels
+@summary: Test yapocis kernels
 @author: seant
 '''
 
@@ -34,7 +34,7 @@ def test():
     image[x-offset:x+offset,y-offset:y+offset] = 2
     image += np.random.random_sample(image.shape)
     
-    filtered = median3x3(image)
+    filtered = median3x3(image, 100)
 
     showArray("Noisy",image)
     showArray("Filtered",filtered)
@@ -56,10 +56,6 @@ def test():
     gimg = joinChannels(*hsi2rgb(a,sat,g))
     showArray("Color gradient with angle", gimg)
 
-    r,g,b = hsi2rgb(h,s,i)
-    image2 = joinChannels(r,g,b)
-    showArray(image2,"From HSI")
-   
    
 if __name__ == '__main__':
     test()
