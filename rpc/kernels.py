@@ -48,6 +48,7 @@ class Kernel:
         self.ctx = ctx
         self.queue = queue
     def prepareArgs(self, args):
+        "Takes the actual arguments and maps to the arguments needed by the kernel"
         self.returns = []
         pargs = []
         iarg = 0
@@ -102,6 +103,7 @@ class Kernel:
         return pargs
     
     def __call__(self, *args, **kwargs):
+        "Call a kernel, prepare arguments, and track performance"
         self.program.calls += 1
         t = time.time()
         self.global_size = kwargs.pop("global_size", None)
@@ -116,6 +118,7 @@ class Kernel:
         return rval
             
     def prepareReturn(self):
+        "Takes the return value buffers (out and outlike) and prepares proper Numpy arrays"
         rvals = []
         for arg, buf in self.returns:
             pyopencl.enqueue_copy(self.queue, arg, buf).wait()
@@ -150,11 +153,13 @@ class Program:
         for kernel in interface.kernels():
             self.callable[kernel] = Kernel(self, getattr(program,kernel), interface.kernelparams(kernel), ctx, queue)
     def __getattr__(self, attr):
+        "Any unbound attribute is checked to see if it is a callable"
         if not attr in self.callable:
             print "Kernel %s not found, %s available" % (attr, self.callable.keys())
             raise KeyError, attr
         return self.callable[attr]
     def purgeBuffers(self):
+        "Purges mapped buffers if the Numpy array has been garbage collected"
         for key in self.buffers.keys():
             if not key in self.context:
                 del self.buffers[key]
@@ -162,6 +167,7 @@ class Program:
             if not key in self.context:
                 del self.context_meta[key]
     def findBuffer(self, arg, metadata):
+        "Finds or allocates an appropriately mapped buffer"
         self.purgeBuffers()
         argid = id(arg)
         dirflag, param = metadata

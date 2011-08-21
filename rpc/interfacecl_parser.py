@@ -13,6 +13,9 @@ import pprint
 
 bnf = None
 def INTERFACECL_BNF():
+    """\
+    pyparser grammar for the yapocis interface specification. Inspired by an IDL parser by Paul McGuire, shipped as a demo with pyparser.
+    """
     global bnf
     
     if not bnf:
@@ -67,16 +70,24 @@ def INTERFACECL_BNF():
     return bnf
 
 class InterfaceCL:
+    """\
+    Manages the kernel definitions, particularly the parameter specifications.
+    """
     def __init__(self, interfacename, kerneldefs):
         self.interfacename = interfacename
         self.kerneldefs_ = kerneldefs
         self.program = None
     def kernels(self):
+        "Returns a list of kernel names"
         return self.kerneldefs_.keys()
     def kernelparams(self, kernel):
+        "Returns the parameter specifications for a kernel"
         return self.kerneldefs_.get(kernel, None)
 
 def fixParam(param):
+    """\
+    Deals with variants of parameter specifications, returns a uniform array of information.
+    """
     # Length 2: outlike, identifier (exists)
     # Length 3: outlike, dtype, identifier (exists)
     # Length 3: in, dtype, identifier 
@@ -104,6 +115,9 @@ def fixParam(param):
         
         
 def getInterfaceCL(s):
+    """\
+    Builds an InterfaceCL for the source interface definition.
+    """
     try:
         bnf = INTERFACECL_BNF()
         tokens = bnf.parseString(s)
@@ -134,8 +148,8 @@ def getInterfaceCL(s):
         print " "*(err.column-1) + "^"
         print err
         raise 
-    
-if __name__ == "__main__":
+
+def test_getinterfacecl():
     interface = getInterfaceCL(
         """
         interface boundedmedian {
@@ -181,4 +195,6 @@ if __name__ == "__main__":
                 assert not fromgpu
                 print "Use as parameter.",
             print
-  
+    
+if __name__ == "__main__":
+    test_getinterfacecl()

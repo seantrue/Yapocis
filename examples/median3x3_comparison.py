@@ -13,7 +13,7 @@ yapocis_deltas = []
 numpy_deltas = []
 errors = []
 for i in range(0,50):
-    width = (i+1)*20
+    width = (i+1)*40
     img = np.float32(np.random.random_sample((width,width)))
     
     t = time.time()
@@ -33,7 +33,17 @@ for i in range(0,50):
     errors.append(error)
     
 from matplotlib import pyplot as plot
-
-plot.fill_between(sizes, numpy_deltas, yapocis_deltas)
+areas = np.array(areas)
+numpy_deltas = np.array(numpy_deltas)
+yapocis_deltas = np.array(yapocis_deltas)
+ratio = yapocis_deltas/numpy_deltas
+p = plot.subplot(111)
+plot.title("Median 3x3 filter performance",fontsize="large")
+l1 = plot.plot(areas, numpy_deltas)
+l2 = plot.plot(areas, yapocis_deltas)
+l3 = p.plot(areas,ratio)
 plot.fill_between(areas, numpy_deltas, yapocis_deltas)
+plot.figlegend( (l1, l2, l3), ('numpy', 'yapocis','ratio'), 'upper left', shadow=True)
+plot.xlabel("Pixels",fontsize="medium")
+plot.ylabel("Seconds",fontsize="medium")
 plot.show()

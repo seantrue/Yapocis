@@ -1,7 +1,5 @@
-'''
+'''\
 Created on Aug 12, 2011
-
-@author: seant
 '''
 demo = """
 interface demo {
