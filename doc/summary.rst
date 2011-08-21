@@ -12,3 +12,27 @@ and there were some code changes required to jump forward. Those changes are ent
 kernel code itself, and adapting kernel interfaces to Yapocis should usually start with already
 functioning OpenCL code.
 
+
+Quick look
+----------
+
+And here's a fast comparison between three ways of getting an embarassingly parallel thing 
+done from Python:
+
+First the easy way, with numpy:
+
+.. literalinclude:: /../examples/demo_numpy.py
+   :language: python
+   :linenos:
+   
+First the easy and fast way, with yapocis:
+
+.. literalinclude:: /../examples/demo_yapocis.py
+   :language: python
+   :linenos: 
+   
+First the hard and fast way, with raw pyopencl:
+
+.. literalinclude:: /../examples/demo_opencl.py
+   :language: python
+   :linenos:     

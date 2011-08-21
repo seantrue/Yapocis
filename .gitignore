@@ -1,2 +1,7 @@
 *.pyc
 *~
+/.project
+/.pydevproject
+\#*\#
+/doc/_build/*
+/__pycache__
