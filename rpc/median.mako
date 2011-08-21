@@ -2,7 +2,7 @@
 float median${npoints}(float *a, int n) {
     float l,h;
     bool lt;
-    % for i in range(npoints):
+    % for i in range(npoints/2+1):
     % for j in range(i+1, npoints):
     lt = a[${j}] < a[${i}];
     l = lt ? a[${j}] : a[${i}];

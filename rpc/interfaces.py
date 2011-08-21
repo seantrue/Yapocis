@@ -3,6 +3,12 @@ Created on Aug 12, 2011
 
 @author: seant
 '''
+demo = """
+interface demo {
+    kernel sum(in float32 *a, in float32 *b, outlike a);
+    };
+"""
+
 boundedmedian = """
     interface boundedmedian {
          kernel boundedmedian(in int32 offset, in float32 *input, in int32 *zcs, outlike input, outlike int16 input);

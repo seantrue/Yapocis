@@ -5,7 +5,7 @@ from pyopencl import mem_flags as mf #@UnusedImport
 import numpy as np
 
 #ctx = pyopencl.create_some_context(interactive=False)
-ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[1]])
+ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[0]])
 queue = pyopencl.CommandQueue(ctx)
 mf = pyopencl.mem_flags
 
@@ -16,6 +16,9 @@ directories = [".","rpc","interfaces"]
 mylookup = TemplateLookup(directories=directories)
 
 def renderProgram(filename, **context):
+    """
+    Takes the basename of a mako template file, and uses context to generate an OpenCL program
+    """
     filename += ".mako"
     for d in directories:
         tfilename = os.path.join(d,filename)
@@ -25,11 +28,19 @@ def renderProgram(filename, **context):
     return str(t.render(**context))
 
 def renderInterface(source, **context):
+    """
+    Takes the source for a mako definition of a yapocis.rpc interface and generates
+    a parsable definition. Useful when the template can generate multiple parameterized
+    routines.
+    """
     t = Template(source, lookup=mylookup)
     return str(t.render(**context))
 
 # Todo: Not thread safe: allocate a new Program and Kernels per thread
 class Kernel:
+    """
+    Provide a callable interface to an OpenCL kernel function.
+    """
     def __init__(self, program, kernel, params, ctx, queue):   
         self.program = program
         self.kernel = kernel
@@ -118,6 +129,11 @@ class Kernel:
 
 from weakref import WeakValueDictionary
 class Program:
+    """
+    Takes a parsed yapocis interface and returns a class/module like structure
+    which supports calling into kernel methods of the interface.
+    Manages buffers on the OpenCL device to prevent over-allocation.
+    """
     def __init__(self, interface):
         self.ctx = ctx
         self.callable = {}
@@ -169,6 +185,10 @@ class Program:
     
 from interfacecl_parser import getInterfaceCL
 def loadProgram(source, debug=False,**context):
+    """
+    Primary interface for yapocis.rpc
+    Factory returning runnable interface based on a interface specification.
+    """
     source = renderInterface(source, **context)
     interface = getInterfaceCL(source)
     if debug: print "Interface", interface
@@ -179,7 +199,8 @@ def loadProgram(source, debug=False,**context):
     interface.program = program
     return Program(interface)
 
-from interfaces import *
+# Make the standard yapocis interfaces visible immediately.
+from interfaces import * #@UnusedWildImport
 
 def test_compiling():
     print "Interface search path", directories
@@ -194,6 +215,7 @@ def test_compiling():
                   (averagesegments,{}),
                   (boundedaverage,{}),
                   (label, {}),
+                  (demo,{}),
                   ]
     for interface, context in interfaces:
         program =loadProgram(interface, **context)

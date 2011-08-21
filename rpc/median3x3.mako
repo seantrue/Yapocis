@@ -10,7 +10,7 @@ void median3x3(int awidth, int height, __global float* a, __global float* ret )
     size_t right = awidth - left;
     int h = height;
     i = get_global_id(0);
-    m = 0.0;
+    m = a[i];
     if ((i >= left) &&  (i < right)) {
 		aa[0] =  a[(i-h)-1];
 		aa[1] =  a[i-h];
