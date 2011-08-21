@@ -1,14 +1,14 @@
 <% left = len(conv)/2 %>
 __kernel
-void ${name}(__global int width, __global float* a, __global float* ret )
+void ${name}(int width,  __global float* a, __global float* ret )
 {
     size_t i;
     float sum;
-    int right;
+    size_t right;
     right = width-${left};
     i = get_global_id(0);
     sum = 0.0;
-    if ((i > ${left}) &&  (i < right)) {
+    if ((i > (size_t)${left}) &&  (i < right)) {
 	%for j in range(len(conv)):
        sum = sum + a[i+(${j-left})] * ${conv[j]};
     %endfor

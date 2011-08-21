@@ -1,11 +1,11 @@
 % for name, conv in convs:
 <% left = len(conv)/2 %>
 __kernel
-void ${name}(__global int width, __global float* a, __global float* ret )
+void ${name}(int width, __global float* a, __global float* ret )
 {
     size_t i;
     float sum;
-    int right;
+    size_t right;
     right = width-${left};
     i = get_global_id(0);
     sum = 0.0;

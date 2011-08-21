@@ -1,13 +1,13 @@
-<%include file="./median.mako" />
+<%include file="median.mako" />
 
 <% left = width/2 %>
 __kernel
-void ${name}(__global int awidth, __global float* a, __global float* ret )
+void ${name}(int awidth, __global float* a, __global float* ret )
 {
-	float aa[${width}];
+    float aa[${width}];
     size_t i;
     float m;
-    int right;
+    size_t right;
     right = awidth-${left};
     i = get_global_id(0);
     m = 0.0;

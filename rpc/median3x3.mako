@@ -1,13 +1,13 @@
 <%include file="median.mako" />
 
 __kernel
-void median3x3(__global int awidth, __global int height, __global float* a, __global float* ret )
+void median3x3(int awidth, int height, __global float* a, __global float* ret )
 {
-	float aa[9];
+    float aa[9];
     size_t i;
     float m;
-    int left = height + 1;
-    int right = awidth - left;
+    size_t left = height + 1;
+    size_t right = awidth - left;
     int h = height;
     i = get_global_id(0);
     m = 0.0;

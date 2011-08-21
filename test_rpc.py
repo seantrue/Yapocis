@@ -6,7 +6,6 @@ Created on Jul 21, 2011
 
 import numpy as np
 from scipy.misc import imread, toimage
-
 def showArray(title, image):
     from PIL import ImageFont #@UnresolvedImport
     from PIL import ImageDraw #@UnresolvedImport
@@ -19,6 +18,7 @@ def showArray(title, image):
         ink = tuple(ink)
     draw.text((10, 10), title, ink,font=font)
     img.show()
+from utils import showArray, showArrayGrad
 
 
 def test():
@@ -55,7 +55,8 @@ def test():
     sat = np.ones_like(i)
     gimg = joinChannels(*hsi2rgb(a,sat,g))
     showArray("Color gradient with angle", gimg)
-
+    showArrayGrad("Grad angle", image, a)
+    showArrayGrad("Grad vectors", image, a,g)
    
 if __name__ == '__main__':
     test()

@@ -9,8 +9,8 @@ import numpy as np
 
 from rpc import kernels, interfaces
 
-
-gradientcl = kernels.loadProgram(interfaces.gradient).gradient
+program = kernels.loadProgram(interfaces.gradient)
+gradientcl = program.gradient
 
 def gradient(image,reach=1):
     width,height = shape = image.shape

@@ -1,13 +1,13 @@
 #define eps FLT_EPSILON
-#define pi 3.1415926535
+#define pi 3.14159265359
 __kernel
-void gradient(__global int awidth, __global int height, __global float* a, __global int reach, __global float* grad, global float* angle)
+void gradient(int awidth, int height, __global float* a, int reach, __global float* grad, __global float* angle)
 {
     size_t i;
     float gr,ang;
 	float dx, dy;
-    int left = (reach*height) + 1;
-    int right = awidth - left;
+    size_t left = (reach*height) + 1;
+    size_t right = awidth - left;
     int h = height;
     i = get_global_id(0);
     gr = 0.0;

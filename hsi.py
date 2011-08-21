@@ -3,7 +3,7 @@ Created on Jul 22, 2011
 
 @author: seant
 '''
-
+DEBUG=False
 import numpy as np
 
 def histeq(im,nbr_bins=2**16):
@@ -36,16 +36,19 @@ def joinChannels(r,g,b):
     rgb[:,:,0],rgb[:,:,1],rgb[:,:,2] = r.copy(),g.copy(),b.copy()
     return rgb
 
-hsi = kernels.loadProgram(interfaces.hsi)
+program = kernels.loadProgram(interfaces.hsi)
 
 def rgb2hsi(r,g,b):
 	shape = r.shape
-	h,s,i = hsi.rgb2hsi(r.flatten(),g.flatten(),b.flatten())
+	h,s,i, trace = program.rgb2hsi(r.flatten(),g.flatten(),b.flatten())
+	if DEBUG:
+	    import utils
+	    utils.showArray("Trace", trace.reshape(shape))
 	return h.reshape(shape),s.reshape(shape),i.reshape(shape)
 	
 def hsi2rgb(h,s,i):
 	shape = h.shape
-	r,g,b = hsi.hsi2rgb(h.flatten(),s.flatten(),i.flatten())
+	r,g,b = program.hsi2rgb(h.flatten(),s.flatten(),i.flatten())
 	return r.reshape(shape),g.reshape(shape),b.reshape(shape)
 
 if __name__ == "__main__":
@@ -66,4 +69,4 @@ if __name__ == "__main__":
 	showArray("I", i)
 	showArray("H", h)
 	showArray("S", s)
-	
+	print program

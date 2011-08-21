@@ -1,7 +1,6 @@
-__kernel void mandelbrot(__global float2 *q,
-                 __global short *output, int const maxiter)
+__kernel void mandelbrot(__global float2 *q, __global short *output, int const maxiter)
 {
-    int gid = get_global_id(0);
+    size_t gid = get_global_id(0);
     float nreal, real = 0;
     float imag = 0;
 
