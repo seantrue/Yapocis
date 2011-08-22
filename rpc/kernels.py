@@ -5,25 +5,33 @@ from pyopencl import mem_flags as mf #@UnusedImport
 import numpy as np
 
 #ctx = pyopencl.create_some_context(interactive=False)
-ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[0]])
+ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[1]])
 queue = pyopencl.CommandQueue(ctx)
 mf = pyopencl.mem_flags
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
 
+def findFile(dirs, subdirs, filename):
+    for d in dirs:
+        for sd in subdirs:
+            pth = os.path.join(d,sd,filename)
+            if os.path.exists(pth):
+                return pth
+    return None
 directories = [".","rpc","interfaces"]
-mylookup = TemplateLookup(directories=directories)
-
 def renderProgram(filename, **context):
     """
     Takes the basename of a mako template file, and uses context to generate an OpenCL program
     """
     filename += ".mako"
-    for d in directories:
-        tfilename = os.path.join(d,filename)
-        if os.path.exists(tfilename):
-            break
+    tfilename = findFile([os.getcwd(), os.path.abspath(os.path.dirname(__file__))],
+                         [".","rpc","interfaces"],
+                         filename
+                         )
+    if not tfilename:
+        raise Exception("Can't find template '%s'" % filename)
+    mylookup = TemplateLookup(directories=[os.path.dirname(tfilename)])
     t = Template(filename=tfilename,lookup=mylookup)
     return str(t.render(**context))
 
@@ -33,7 +41,7 @@ def renderInterface(source, **context):
     a parsable definition. Useful when the template can generate multiple parameterized
     routines.
     """
-    t = Template(source, lookup=mylookup)
+    t = Template(source)
     return str(t.render(**context))
 
 # Todo: Not thread safe: allocate a new Program and Kernels per thread

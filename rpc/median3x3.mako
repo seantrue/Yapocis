@@ -1,4 +1,4 @@
-<%include file="median.mako" />
+<%include file="/median.mako" />
 
 __kernel
 void median3x3(int awidth, int height, __global float* a, __global float* ret )
