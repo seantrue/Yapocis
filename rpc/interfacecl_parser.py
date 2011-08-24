@@ -30,6 +30,8 @@ def INTERFACECL_BNF():
         semi   = Literal(";")
         
         # keywords
+        alias_     = Keyword("alias")
+        as_        = Keyword("as")
         boolean_   = Keyword("boolean")
         char_      = Keyword("char")
         complex64_ = Keyword("complex64")
@@ -42,6 +44,7 @@ def INTERFACECL_BNF():
         kernel_    = Keyword("kernel")
         out_       = Keyword("out")
         outlike_   = Keyword("outlike")
+        resident_   = Keyword("resident")
         uint16_     = Keyword("uint16")
         uint32_     = Keyword("uint32")
         void_      = Keyword("void")
@@ -56,8 +59,8 @@ def INTERFACECL_BNF():
                     ^ float32_ ^ complex64_ ^
                     uint16_ ^ uint32_)
 
-        paramlist = delimitedList( Group( ( inout_ | in_ | out_ | outlike_) + Optional(typeName) + Optional(star) + identifier))
-        interfaceItem = ( ( kernel_ ^ void_ ^ typeName ) + identifier + lparen + Optional( paramlist ) + rparen + semi)
+        paramlist = delimitedList( Group( ( inout_ | in_ | out_ | outlike_ | resident_) + Optional(typeName) + Optional(star) + identifier))
+        interfaceItem = ( ( kernel_ ^ void_ ^ alias_ ^ typeName ) + identifier + Optional(Group(as_ +identifier)) + lparen + Optional( paramlist ) + rparen + semi)
         interfaceDef = Group( interface_ + identifier  + lbrace + ZeroOrMore( interfaceItem) + rbrace + semi )
         moduleItem = interfaceDef
 
@@ -73,9 +76,10 @@ class InterfaceCL:
     """\
     Manages the kernel definitions, particularly the parameter specifications.
     """
-    def __init__(self, interfacename, kerneldefs):
+    def __init__(self, interfacename, kerneldefs, kernelaliases):
         self.interfacename = interfacename
         self.kerneldefs_ = kerneldefs
+        self.kernelaliases = kernelaliases
         self.program = None
     def kernels(self):
         "Returns a list of kernel names"
@@ -83,6 +87,8 @@ class InterfaceCL:
     def kernelparams(self, kernel):
         "Returns the parameter specifications for a kernel"
         return self.kerneldefs_.get(kernel, None)
+    def kernelalias(self, kernelname):
+        return self.kernelaliases.get(kernelname,kernelname)
 
 def fixParam(param):
     """\
@@ -94,7 +100,7 @@ def fixParam(param):
     # Length 4 direction, dtype, *, identifier
     op = ["","","",""]
     if len(param) == 2:
-        assert param[0] == "outlike"
+        assert param[0] in ("outlike","resident")
         op[0] = param[0]
         op[2] = '*'
         op[3] = param[1]
@@ -126,13 +132,22 @@ def getInterfaceCL(s):
         assert tokens.pop(0) == "interface"
         interfacename = tokens.pop(0)
         kerneldefs = {}
+        kernelaliases = {}
         assert tokens.pop(0) == "{"
         while 1:
             token = tokens.pop(0)
             if token == "}":
                 break
-            assert token == "kernel"
-            kernelname = tokens.pop(0)
+            assert token in ("kernel","alias")
+            if token == "alias":
+                alias = tokens.pop(0)
+                assert tokens[0][0] == "as"
+                kernelname = tokens.pop(0)[1]
+                kernelaliases[alias] = kernelname
+                kernelname = alias
+            else:
+                alias = None
+                kernelname = tokens.pop(0)
             params = []
             assert tokens.pop(0) == '('
             while 1:
@@ -142,7 +157,7 @@ def getInterfaceCL(s):
                 params.append(fixParam(param))
             assert tokens.pop(0) == ";"
             kerneldefs[kernelname] =  params
-        return InterfaceCL(interfacename, kerneldefs)
+        return InterfaceCL(interfacename, kerneldefs, kernelaliases)
     except ParseException, err:
         print err.line
         print " "*(err.column-1) + "^"
@@ -154,24 +169,25 @@ def test_getinterfacecl():
         """
         interface boundedmedian {
              kernel boundedmedian(in int32 offset, in float32 *input, in int32 *zcs, outlike int16 input, out int16 *trace);
+             alias bm as boundedmedian(in int32 offset, resident float32 *input, in int32 *zcs, resident float32 *input, out int16 *trace);
           };
         """
         )
     print "Interface:", interface.interfacename
     for kernel in interface.kernels():
-        print kernel, 
+        print "Kernel: %s alias for %s" % (kernel, interface.kernelalias(kernel))
         symbols = {}
         iparam = 0
         for param in interface.kernelparams(kernel):
             assert len(param) == 4
-            print param
+            print "Param:", param,
             direction, dtype, isbuffer, name = param
-            assert direction in ("in","out","inout","outlike")
+            assert direction in ("in","out","inout","outlike","resident")
             if direction == "outlike":
                 assert name in symbols
                 iparam, olparam = symbols[name]
                 dtype,isbuffer = olparam[1],olparam[2]
-                print "->", olparam
+                print "->", olparam,
                 assert isbuffer
             else:
                 symbols[name] = iparam,param
@@ -181,8 +197,9 @@ def test_getinterfacecl():
             togpu = direction in ("in","inout")
             fromgpu = direction in ("out","inout","outlike")
             if isbuffer:
-                if direction == "outlike":
-                    
+                if direction == "resident":
+                    print "Buffer is resident on GPU.",
+                elif direction == "outlike":
                     print "Allocate a buffer like %(name)s (position=%(iparam)s). (%(olparam)s)" % locals(),
                 else:
                     print "Coerce %(name)s to numpy.%(dtype)s. " % locals(), 
@@ -195,6 +212,7 @@ def test_getinterfacecl():
                 assert not fromgpu
                 print "Use as parameter.",
             print
+        print
     
 if __name__ == "__main__":
     test_getinterfacecl()

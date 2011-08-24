@@ -23,6 +23,9 @@ convolves = """
 median3x3 = """
     interface median3x3 {
         kernel median3x3(in int32 width, in int32 rowwidth, in float32* a, out float32* ret );
+        alias first as median3x3(in int32 width, in int32 rowwidth, in float32* a, in float32* ret );
+        alias step as median3x3(in int32 width, in int32 rowwidth, resident float32* a, resident float32* ret );
+        alias last as median3x3(in int32 width, in int32 rowwidth, resident float32* a, out float32* ret );
     };
 """
 

@@ -88,7 +88,14 @@ class Kernel:
 #            else:
 #                dirflag = mf.READ_WRITE|mf.COPY_HOST_PTR
             dirflag = mf.READ_WRITE|mf.COPY_HOST_PTR
-            if direction == "outlike":
+            buf = None
+            if direction == "resident":
+                arg = args[iarg]
+                parg = arg
+                iarg += 1
+                buf = self.program.findBuffer(parg, (dirflag, param))
+                assert buf, "Resident buffer is not present, array have gone out of scope"
+            elif direction == "outlike":
                 iparam, _, oldtype, _ = paramdict[name]
                 if not dtype:
                     dtype = getattr(np, oldtype)
@@ -102,9 +109,10 @@ class Kernel:
                 parg = arg
                 iarg += 1
             # If we do not have an explicit global size, to to shape of first inbound array
-            if self.global_size is None and direction in ("in","inout"):
+            if self.global_size is None and direction in ("in","inout","resident"):
                 self.global_size = parg.shape
-            buf = self.program.findBuffer(parg, (dirflag, param))
+            if buf is None:
+                buf = self.program.findBuffer(parg, (dirflag, param))
             if direction in ("out","inout","outlike"):
                 self.returns.append((parg, buf))
             pargs.append(buf)
@@ -159,7 +167,8 @@ class Program:
         self.runtime = 0.0
         self.queue = queue
         for kernel in interface.kernels():
-            self.callable[kernel] = Kernel(self, getattr(program,kernel), interface.kernelparams(kernel), ctx, queue)
+            alias = interface.kernelalias(kernel)
+            self.callable[kernel] = Kernel(self, getattr(program,alias), interface.kernelparams(kernel), ctx, queue)
     def __getattr__(self, attr):
         "Any unbound attribute is checked to see if it is a callable"
         if not attr in self.callable:
@@ -190,7 +199,8 @@ class Program:
             self.misses += 1
         else:
             buf = self.buffers[argid]
-            pyopencl.enqueue_copy(self.queue, buf, arg).wait()
+            if param[0] != "resident":
+                pyopencl.enqueue_copy(self.queue, buf, arg).wait()
             self.hits += 1
         return buf
     def __str__(self):
@@ -219,16 +229,11 @@ from interfaces import * #@UnusedWildImport
 def test_compiling():
     print "Interface search path", directories
     interfaces = [(convolve, dict(name="convolve", conv=[1,2,3,4,3,2,1])),
-                  (hmedian, dict(name="hmedian", width=5, steps=[5])),
                   (median3x3, dict(steps=[9], width=9)),
                   (gradient, {}),
-                  (oldhsi, {}),
                   (hsi, {}),
                   (convolves,dict(convs=[("boxone",[1,1,1]),("triangle",[.5,1,.5])])),
                   (mandelbrot,{}),
-                  (averagesegments,{}),
-                  (boundedaverage,{}),
-                  (label, {}),
                   (demo,{}),
                   ]
     for interface, context in interfaces:
@@ -237,7 +242,7 @@ def test_compiling():
         for kernel in program.interface.kernels():
             print "Kernel", kernel
             print "Params", program.interface.kernelparams(kernel)
-            print "OpenCL entry", getattr(program.interface.program, kernel)
+            print "OpenCL entry", getattr(program.interface.program, program.interface.kernelalias(kernel))
             print "Callable", getattr(program, kernel)
         print
    

@@ -101,6 +101,12 @@ There are several. Here are some I remember:
 * The OpenCL engine to use is hardwired in rpc.kernels, and needs a graceful configuration and runtime selection.
 * The requirements.txt is a kitchen sink, and isn't all required. Probably.
 
+Changes and new features
+------------------------
+
+* Reducing data movement between engine and Python code. This is implemented using an alias keyword to add alternate signatures to a kernel, and
+a resident parameter hint which hints the glue code to just use the buffer as-is on the engine. V0.2
+
 Future features
 ---------------
 
@@ -108,5 +114,4 @@ Other than removing the misfeatures:
 
 * Selecting the OpenCL based on strategy (operation and image size).
 * Framework for dealing with multi-dimensional images auto-magically.
-* Reducing data movement between engine and Python code.
 

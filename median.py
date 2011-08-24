@@ -17,3 +17,39 @@ def median3x3(image, iterations=1):
         flat = median3x3cl(flat.size, height, flat, np.zeros_like(flat))
         iterations -= 1
     return flat.reshape(shape)
+
+def median3x3fast(image, iterations=1):
+    if iterations == 1:
+        return median3x3(image)
+    _,height = shape = image.shape #@UnusedVariable
+    shape = image.shape
+    input = image.copy().flatten()
+    output = np.zeros_like(input)
+    if iterations == 2:
+        program.first(input.size, height, input, output)
+        input,output = output,input
+        program.last(input.size, height, input, output)
+        return output.reshape(shape)
+    program.first(input.size, height, input, output)
+    input,output = output,input
+    iterations -= 1
+    while iterations > 1:
+        program.step(input.size, height, input, output)
+        input,output = output,input
+        iterations -= 1
+    input,output = output,input
+    program.last(input.size, height, input, output)
+    return output.reshape(shape)
+
+def test_median3():
+    a1 = np.random.sample((100,100)).astype(np.float32)
+    a2 = a1.copy()
+    from utils import stage
+    stage("slow")
+    b1 = median3x3(a1,5000)
+    stage("fast")
+    b2 = median3x3fast(a2,5000)
+    stage()
+    print "Error:", np.sum(np.abs(b1.flatten()-b2.flatten()))
+if __name__ == "__main__":
+    test_median3()
