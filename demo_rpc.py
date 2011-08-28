@@ -5,7 +5,7 @@ Created on Jul 21, 2011
 '''
 
 import numpy as np
-from scipy.misc import imread, toimage
+from utils import imread, toimage
 def showArray(title, image):
     from PIL import ImageFont #@UnresolvedImport
     from PIL import ImageDraw #@UnresolvedImport

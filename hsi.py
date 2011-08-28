@@ -22,7 +22,6 @@ def histeq(im,nbr_bins=2**16):
     
     return numpy.array(im2,  numpy.float32).reshape(im.shape)
 
-from scikits.image.color import rgb2hsv, hsv2rgb #@UnusedImport
 from rpc import kernels, interfaces
 
 def splitChannels(rgb):
