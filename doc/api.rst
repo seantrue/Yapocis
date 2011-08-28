@@ -5,23 +5,23 @@ API Reference
 rpc.kernels
 -----------
 
-Most developers will only use the loadProgram method.
+Most developers will only use the loadProgram method, and possibly the getEngine method.
 
 .. automodule:: rpc.kernels
-   :members:
-   :undoc-members:
+   :members: loadProgram,getEngine
 
 rpc.interfaces
 --------------
 
-Text defition of yapocis interfaces, kept in a single file for convenience
+Text definition of yapocis interfaces, kept in a single file for convenience
 
-.. autodata:: rpc.interfaces
+.. literalinclude:: ../rpc/interfaces.py
+  :language: python
+  :linenos:
 
 rpc.interfacecl_parser
 ----------------------
 
 .. automodule:: rpc.interfacecl_parser
-   :members:
-   :undoc-members:
+   :members: getInterfaceCL
 

@@ -13,6 +13,7 @@ Contents:
 
    summary
    intro
+   architecture
    examples
    api
 

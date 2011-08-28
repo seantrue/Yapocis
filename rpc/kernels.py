@@ -7,6 +7,78 @@ import numpy as np
 GPU_ENGINE=0
 CPU_ENGINE=1
 
+MEMFLAGS= mf.READ_WRITE|mf.COPY_HOST_PTR
+
+from weakref import WeakValueDictionary
+class Engine(object):
+    def __init__(self, engine):
+        self.ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[engine]])
+        self.queue = pyopencl.CommandQueue(self.ctx)
+        # Buffer management
+        self.context = WeakValueDictionary()
+        self.context_meta = {}
+        self.buffers = {}
+        self.hits = 0
+        self.misses = 0
+        self.calls = 0
+        self.runtime = 0.0
+
+
+    def build(self, source):
+        binary = pyopencl.Program(self.ctx, source)
+        program = binary.build(options=["-w"])
+        return program
+
+    def purgeBuffers(self):
+        "Purges mapped buffers if the Numpy array has been garbage collected"
+        for key in self.buffers.keys():
+            if not key in self.context:
+                del self.buffers[key]
+        for key in self.context_meta.keys():
+            if not key in self.context:
+                del self.context_meta[key]
+    def findBuffer(self, arg, metadata):
+        "Finds or allocates an appropriately mapped buffer"
+        self.purgeBuffers()
+        argid = id(arg)
+        dirflag, param = metadata
+        living = self.context.get(argid, None)
+        # TODO: Make a better force miss
+        #living is None
+        if living is None:
+            buf = pyopencl.Buffer(self.ctx, dirflag, hostbuf = arg)
+            self.context[argid] = arg
+            self.buffers[argid] = buf
+            self.context_meta[argid] = metadata
+            self.misses += 1
+        else:
+            buf = self.buffers[argid]
+            if param[0] != "resident":
+                pyopencl.enqueue_copy(self.queue, buf, arg).wait()
+            self.hits += 1
+        return buf
+    def write(self, arg):
+        # find or construct a buffer that matches the arg. 
+        # Param data will be (iparam=0, direction=mf.READ_WRITE|mf.COPY_HOST_PTR, dtype=dtype of arg, isbuffer=True)
+        assert hasattr(arg,"dtype")
+        param = ("resident",arg.dtype,True)
+        buf = self.findBuffer(arg,(MEMFLAGS,param))
+        pyopencl.enqueue_copy(self.queue, buf, arg).wait()
+        return buf
+    def read(self, arg):
+        assert self.context.has_key(id(arg))
+        param = ("resident",arg.dtype,True)
+        buf = self.findBuffer(arg, (MEMFLAGS,param))
+        pyopencl.enqueue_copy(self.queue, arg, buf).wait()
+        return arg
+
+    
+engines = {CPU_ENGINE:Engine(CPU_ENGINE),GPU_ENGINE:Engine(GPU_ENGINE)}
+def getEngine(engine):
+    """Takes the identifier for an OpenCL engine (CPU_ENGINE, GPU_ENGINE)
+    and returns a Engine with buffer management ."""
+    return engines[engine]
+
 from mako.template import Template
 from mako.lookup import TemplateLookup
 
@@ -47,12 +119,12 @@ class Kernel:
     """
     Provide a callable interface to an OpenCL kernel function.
     """
-    def __init__(self, program, kernel, params, ctx, queue):   
+    def __init__(self, program, kernel, params, engine):   
         self.program = program
         self.kernel = kernel
         self.params = params
-        self.ctx = ctx
-        self.queue = queue
+        self.ctx = engine.ctx
+        self.queue = engine.queue
     def prepareArgs(self, args):
         "Takes the actual arguments and maps to the arguments needed by the kernel"
         self.returns = []
@@ -79,12 +151,6 @@ class Kernel:
                 parg = dtype(arg)
                 pargs.append(parg)
                 continue
-#            if direction == "in":
-#                dirflag = mf.READ_ONLY|mf.COPY_HOST_PTR
-#            elif direction in ("out"):
-#                dirflag = mf.WRITE_ONLY|mf.COPY_HOST_PTR
-#            else:
-#                dirflag = mf.READ_WRITE|mf.COPY_HOST_PTR
             dirflag = mf.READ_WRITE|mf.COPY_HOST_PTR
             buf = None
             if direction == "resident":
@@ -144,7 +210,6 @@ class Kernel:
             return rvals[0]
         return tuple(rvals)
 
-from weakref import WeakValueDictionary
 class Program:
     """
     Takes a parsed yapocis interface and returns a class/module like structure
@@ -153,30 +218,28 @@ class Program:
     """
     def __init__(self, interface, engine, debug=False, **context):
         source = renderProgram(interface.interfacename, **context)
+        self.source = source
         if debug: 
             print "Source"
             print source
-        ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[engine]])
-        queue = pyopencl.CommandQueue(ctx)
         mf = pyopencl.mem_flags
-        self.ctx = ctx
-        binary = pyopencl.Program(ctx, source)
-        program = binary.build(options=["-w"])
-        interface.program = program
+        self.engine = getEngine(engine)
+        interface.program = self.engine.build(source)
         self.callable = {}
-        self.context = WeakValueDictionary()
-        self.context_meta = {}
-        self.buffers = {}
+        self.context = self.engine.context
+        self.context_meta = self.engine.context_meta
+        self.ctx = self.engine.ctx
+        self.queue = self.engine.queue
+        self.buffers = self.engine.buffers
         self.interface = interface
         program = interface.program
         self.hits = 0
         self.misses = 0
         self.calls = 0
         self.runtime = 0.0
-        self.queue = queue
         for kernel in interface.kernels():
             alias = interface.kernelalias(kernel)
-            self.callable[kernel] = Kernel(self, getattr(program,alias), interface.kernelparams(kernel), ctx, queue)
+            self.callable[kernel] = Kernel(self, getattr(program,alias), interface.kernelparams(kernel), self.engine)
     def __getattr__(self, attr):
         "Any unbound attribute is checked to see if it is a callable"
         if not attr in self.callable:
@@ -184,33 +247,15 @@ class Program:
             raise KeyError, attr
         return self.callable[attr]
     def purgeBuffers(self):
-        "Purges mapped buffers if the Numpy array has been garbage collected"
-        for key in self.buffers.keys():
-            if not key in self.context:
-                del self.buffers[key]
-        for key in self.context_meta.keys():
-            if not key in self.context:
-                del self.context_meta[key]
-    def findBuffer(self, arg, metadata):
-        "Finds or allocates an appropriately mapped buffer"
-        self.purgeBuffers()
-        argid = id(arg)
-        dirflag, param = metadata
-        living = self.context.get(argid, None)
-        # TODO: Make a better force miss
-        #living is None
-        if living is None:
-            buf = pyopencl.Buffer(self.ctx, dirflag, hostbuf = arg)
-            self.context[argid] = arg
-            self.buffers[argid] = buf
-            self.context_meta[argid] = metadata
-            self.misses += 1
-        else:
-            buf = self.buffers[argid]
-            if param[0] != "resident":
-                pyopencl.enqueue_copy(self.queue, buf, arg).wait()
-            self.hits += 1
-        return buf
+        self.engine.purgeBuffers()
+    def findBuffer(self,*args):
+        return self.engine.findBuffer(*args)
+    def read(self, *args):
+        return self.engine.read(*args)
+    def write(self, *args):
+        return self.engine.write(*args)
+    def stats(self):
+        return dict(calls=self.calls, hits=self.hits, misses=self.misses, buffers=len(self.buffers), runtime=self.runtime)
     def __str__(self):
         self.purgeBuffers()
         return "%s calls:%s hits:%s misses:%s cached:%s time:%s" % (self.interface.interfacename, self.calls, self.hits, self.misses, len(self.buffers), self.runtime)
@@ -223,6 +268,7 @@ def loadProgram(source, engine=CPU_ENGINE, debug=False, **context):
     """
     source = renderInterface(source, **context)
     interface = getInterfaceCL(source)
+    interface.source = source
     if debug: print "Interface", interface
     return Program(interface, engine, debug=debug, **context)
 
@@ -230,6 +276,10 @@ def loadProgram(source, engine=CPU_ENGINE, debug=False, **context):
 from interfaces import * #@UnusedWildImport
 
 def test_compiling():
+    # TODO: as tests, this may fail on other systems. Replace with known hash
+    
+    sourcehashes = [6202013264865897877, -8119117248955560468, 7139354972159999745, -682776529868236564, 1403331523463003145, -7762762614049038277, 8451406568839298774]   
+    interfacehashes =[-2109316339629522021, -6764325105702059850, -590229354650820537, 3368954509243294669, -1415409027939469990, -6080957408847037761, 5075239760954339868]
     print "Interface search path", directories
     interfaces = [(convolve, dict(name="convolve", conv=[1,2,3,4,3,2,1])),
                   (median3x3, dict(steps=[9], width=9)),
@@ -239,8 +289,10 @@ def test_compiling():
                   (mandelbrot,{}),
                   (demo,{}),
                   ]
-    for interface, context in interfaces:
+    for itest, (interface, context) in enumerate(interfaces):
         program =loadProgram(interface, engine=GPU_ENGINE, debug=True,**context)
+        assert interfacehashes[itest] == hash(program.interface.source), hash(program.interface.source)
+        assert sourcehashes[itest] == hash(program.source), hash(program.source)
         print "Interface", program.interface.interfacename
         for kernel in program.interface.kernels():
             print "Kernel", kernel
@@ -248,6 +300,25 @@ def test_compiling():
             print "OpenCL entry", getattr(program.interface.program, program.interface.kernelalias(kernel))
             print "Callable", getattr(program, kernel)
         print
+
+def test_context():
+    engine = getEngine(GPU_ENGINE)
+    a = np.random.sample((100,)).astype(np.float32)
+    b = a.copy()
+    engine.write(a)
+    a[:] = 0
+    engine.read(a)
+    diff = np.abs(a-b).sum()
+    assert diff == 0.0
+    del a
+    try:
+        engine.read(b)
+        print "Did not fail on unmapped array"
+    except AssertionError:
+        pass
+    assert (engine.hits,engine.misses) == (1,1)
    
 if __name__ == "__main__":
     test_compiling()
+    test_context()
+    print "All is well"
