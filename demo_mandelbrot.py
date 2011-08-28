@@ -33,7 +33,7 @@ h = 1024
 
 # Use the rpc extension to define and load the kernel as a callable.
 from rpc import kernels, interfaces
-calc_fractal_opencl = kernels.loadProgram(interfaces.mandelbrot).mandelbrot
+calc_fractal_opencl = kernels.loadProgram(interfaces.mandelbrot,engine=kernels.CPU_ENGINE).mandelbrot
 
 
 

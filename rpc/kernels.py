@@ -4,10 +4,8 @@ import pyopencl
 from pyopencl import mem_flags as mf #@UnusedImport
 import numpy as np
 
-#ctx = pyopencl.create_some_context(interactive=False)
-ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[1]])
-queue = pyopencl.CommandQueue(ctx)
-mf = pyopencl.mem_flags
+GPU_ENGINE=0
+CPU_ENGINE=1
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
@@ -153,8 +151,18 @@ class Program:
     which supports calling into kernel methods of the interface.
     Manages buffers on the OpenCL device to prevent over-allocation.
     """
-    def __init__(self, interface):
+    def __init__(self, interface, engine, debug=False, **context):
+        source = renderProgram(interface.interfacename, **context)
+        if debug: 
+            print "Source"
+            print source
+        ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[engine]])
+        queue = pyopencl.CommandQueue(ctx)
+        mf = pyopencl.mem_flags
         self.ctx = ctx
+        binary = pyopencl.Program(ctx, source)
+        program = binary.build(options=["-w"])
+        interface.program = program
         self.callable = {}
         self.context = WeakValueDictionary()
         self.context_meta = {}
@@ -208,7 +216,7 @@ class Program:
         return "%s calls:%s hits:%s misses:%s cached:%s time:%s" % (self.interface.interfacename, self.calls, self.hits, self.misses, len(self.buffers), self.runtime)
     
 from interfacecl_parser import getInterfaceCL
-def loadProgram(source, debug=False,**context):
+def loadProgram(source, engine=CPU_ENGINE, debug=False, **context):
     """
     Primary interface for yapocis.rpc
     Factory returning runnable interface based on a interface specification.
@@ -216,12 +224,7 @@ def loadProgram(source, debug=False,**context):
     source = renderInterface(source, **context)
     interface = getInterfaceCL(source)
     if debug: print "Interface", interface
-    source = renderProgram(interface.interfacename, **context)
-    if debug: print "Program", source
-    binary = pyopencl.Program(ctx, source)
-    program = binary.build(options=["-w"])
-    interface.program = program
-    return Program(interface)
+    return Program(interface, engine, debug=debug, **context)
 
 # Make the standard yapocis interfaces visible immediately.
 from interfaces import * #@UnusedWildImport
@@ -237,7 +240,7 @@ def test_compiling():
                   (demo,{}),
                   ]
     for interface, context in interfaces:
-        program =loadProgram(interface, **context)
+        program =loadProgram(interface, engine=GPU_ENGINE, debug=True,**context)
         print "Interface", program.interface.interfacename
         for kernel in program.interface.kernels():
             print "Kernel", kernel

@@ -1,8 +1,10 @@
 import numpy as np
 from rpc import interfaces, kernels
 
+from utils import Shaper
+
 def areclose(a,b):
-    eps = np.finfo(type(a)).eps
+    eps = .00001
     return abs(a-b) <= eps
 
 def gauss_1d(sigma=1., dt=1., limit=.01, normalize=True):
@@ -56,7 +58,7 @@ def test_gaussians():
         assert len(g) < mw
     
 
-def gaussianKernels(gs):
+def gaussianKernels(gs, engine=kernels.CPU_ENGINE):
     convs = [("gauss%s" % len(a),a) for a in gs]
     program = kernels.loadProgram(interfaces.convolves,convs=convs)
     krnls = [getattr(program, name) for (name, conv) in convs]
@@ -93,14 +95,16 @@ def gaussImage(image, kernel):
 
 def test_gaussImage():
     gs = gaussians()
-    gkernels = gaussianKernels(gs)
+    gkernels = gaussianKernels(gs, engine=kernels.GPU_ENGINE)
     assert len(gs) == len(gkernels)
+    import time
+    t = time.time()
     for g, gkernel in zip(gs,gkernels):
-        a = np.zeros((256,256), dtype=np.float32)
-        a[127,127] = 1.0
+        a = np.zeros((512,512), dtype=np.float32)
+        a[255,255] = 1.0
         a = gaussImage(a, gkernel)
         # Compare in order of lowest precision
-        assert areclose(a.sum(),1.0)
+    print "Seconds", time.time()-t
     
 
 if __name__ == "__main__":
@@ -108,3 +112,4 @@ if __name__ == "__main__":
     test_gaussians()
     test_kernels()
     test_gaussImage()
+    print "All is well"
