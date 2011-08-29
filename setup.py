@@ -4,23 +4,10 @@ setup(
     version = "0.2.1",
     packages = find_packages(),
     zip_safe=False,
-    install_requires = [
-        "Mako>=0.4.2",
-        "MarkupSafe>=0.15",
-        "Pillow>=1.7.4",
-        "decorator>=3.3.1",
-        "distribute>=0.6.21",
-        "numpy>=1.6.1",
-        "py>=1.4.5",
-        "pyopencl>=2011.1.2",
-        "pyparsing>=1.5.6",
-        "pytest>=2.1.1",
-        "pytools>=2011.3",
-        ],
-
+    # Requirements are in requirements.txt
     package_data = {
         # If any package contains *.txt or *.rst files, include them:
-        '': ['test.jpg'],
+        '': ['test.jpg','requirements.txt'],
     },
 
     # metadata for upload to PyPI
