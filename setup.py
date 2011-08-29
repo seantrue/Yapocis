@@ -1,12 +1,11 @@
 from setuptools import setup, find_packages
 setup(
     name = "yapocis",
-    version = "0.2.1",
+    version = "0.2.2",
     packages = find_packages(),
     zip_safe=False,
     # Requirements are in requirements.txt
     package_data = {
-        # If any package contains *.txt or *.rst files, include them:
         '': ['test.jpg','requirements.txt'],
     },
 
@@ -16,7 +15,12 @@ setup(
     description = "Yet another PyOpenCL interface specifier",
     license = "PSF",
     keywords = "opencl pyopencl thunk rpc image",
-    url = "https://github.com/seantrue/Yapocis/", 
+    url = "https://github.com/seantrue/Yapocis/",
+    classifiers = ["Development Status :: 3 - Alpha",
+                   "Intended Audience :: Developers",
+                   "License :: OSI Approved :: Python Software Foundation License",
+                   "Topic :: Scientific/Engineering :: Image Recognition",
+                   ],
     long_description="""
 Yapocis is "Yet another Python OpenCL interface specification".
 

@@ -5,3 +5,7 @@
 \#*\#
 /doc/_build/*
 /__pycache__
+
+/build/
+/dist/
+/yapocis.egg-info/
