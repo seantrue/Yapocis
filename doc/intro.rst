@@ -30,7 +30,7 @@ Current alternatives
   * NVidia  & Cuda
   * Everybody else & OpenCL
 
-I have the usual complement (meaning, too many) of computers. But images are large, image movement is a bottleneck, and the computers are usually doing something else.
+I have the usual complement (meaning, too many) of computers, which would certainly make cluster-based computing worth considering. But images are large, image movement is a bottleneck, and the computers are usually doing something else.
 
 Multi-core multi-processing is more efficient, but image processing really looks
 like SIMD (single-instruction, multiple-data stream computing), and that is not a strength for message-passing type architectures.

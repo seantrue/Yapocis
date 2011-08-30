@@ -12,6 +12,11 @@ Here to make using OpenCL via Python just a little easier. You can find Yapocis 
 
 * Github: https://github.com/seantrue/Yapocis
 
+Yapocis depends on, and is grateful for:
+
+* PyOpenCL: http://mathema.tician.de/software/pyopencl
+
+* pyparsing: http://pyparsing.wikispaces.com/home
 
 Yapocis is still raw, but appears to be nutritious.
 

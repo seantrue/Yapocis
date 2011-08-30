@@ -15,7 +15,7 @@ rpc.interfaces
 
 Text definition of yapocis interfaces, kept in a single file for convenience
 
-.. literalinclude:: ../rpc/interfaces.py
+.. literalinclude:: ../yapocis/rpc/interfaces.py
   :language: python
   :linenos:
 

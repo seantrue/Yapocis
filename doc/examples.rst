@@ -24,14 +24,14 @@ returned (*last*).
 
 Now, the wrapper code for loading that in an even prettier way:
    
-.. literalinclude:: /../median.py
+.. literalinclude:: /../yapocis/median.py
    :language: python
    :linenos:
 
 and a driver program that compares running the median filter 10 times
 on each of an increasing series of image sizes.
 
-.. literalinclude:: /../examples/median3x3_comparison.py
+.. literalinclude:: /../yapocis/examples/median3x3_comparison.py
    :language: python
    :linenos:
    
