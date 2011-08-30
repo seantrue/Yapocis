@@ -128,3 +128,7 @@ doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
+
+ziphtml: html
+	pushd _build/html; zip ../../yapocis_doc.zip -r .; popd
+	@echo "Built yapocis_doc.zip"
