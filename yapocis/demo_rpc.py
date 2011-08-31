@@ -6,18 +6,6 @@ Created on Jul 21, 2011
 
 import numpy as np
 from utils import imread, toimage
-def showArray(title, image):
-    from PIL import ImageFont #@UnresolvedImport
-    from PIL import ImageDraw #@UnresolvedImport
-    img = toimage(image)
-    font = ImageFont.truetype("/System/Library/Fonts/AppleGothic.ttf",25)
-    draw = ImageDraw.Draw(img)
-    ink = 255
-    if len(image.shape) > 2:
-        ink = [ink] * image.shape[-1]
-        ink = tuple(ink)
-    draw.text((10, 10), title, ink,font=font)
-    img.show()
 from utils import showArray, showArrayGrad
 
 
@@ -27,7 +15,7 @@ def test():
     from hsi import rgb2hsi, hsi2rgb, joinChannels, splitChannels
 
     # Create a noisy image with an embedded white square
-    image = np.zeros((200,300),dtype=np.float32)
+    image = np.zeros((201,199),dtype=np.float32)
     width,height = image.shape
     x,y = width/2, height/2
     offset = 10

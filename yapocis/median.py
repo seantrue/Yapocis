@@ -10,45 +10,48 @@ from rpc import kernels, interfaces
 program = kernels.loadProgram(interfaces.median3x3, width=9, steps=[9])
 median3x3cl = program.median3x3
 def median3x3(image, iterations=1):
-    _,height = shape = image.shape #@UnusedVariable
-    shape = image.shape
-    flat = image.flatten()  
     while iterations > 0:
-        flat = median3x3cl(flat.size, height, flat, np.zeros_like(flat))
+        image = median3x3cl(image)
         iterations -= 1
-    return flat.reshape(shape)
+    return image
 
 def median3x3fast(image, iterations=1):
     if iterations == 1:
+        # One pass through
         return median3x3(image)
-    _,height = shape = image.shape #@UnusedVariable
-    shape = image.shape
-    input = image.copy().flatten()
+    input = image
     output = np.zeros_like(input)
     if iterations == 2:
-        program.first(input.size, height, input, output)
+        # Send in data, don't retrieve
+        program.first(input, output)
         input,output = output,input
-        program.last(input.size, height, input, output)
-        return output.reshape(shape)
-    program.first(input.size, height, input, output)
+        # Don't send in, retrieve data
+        program.last(input, output)
+        return output
+    # Send in data, no retrieve
+    program.first(input, output)
     input,output = output,input
-    iterations -= 1
+    # Allow for first and last calls
+    iterations -= 2
     while iterations > 1:
-        program.step(input.size, height, input, output)
+        # Iterate with resident data
+        program.step(input, output)
         input,output = output,input
         iterations -= 1
+    # And retrieve the data
     input,output = output,input
-    program.last(input.size, height, input, output)
-    return output.reshape(shape)
+    program.last(input, output)
+    return output
 
 def test_median3():
-    a1 = np.random.sample((100,100)).astype(np.float32)
+    a1 = np.random.sample((999,1001)).astype(np.float32)
     a2 = a1.copy()
     from utils import stage
     stage("slow")
-    b1 = median3x3(a1,5000)
+    b1 = median3x3(a1,1000)
+    stage()
     stage("fast")
-    b2 = median3x3fast(a2,5000)
+    b2 = median3x3fast(a2,1000)
     stage()
     print "Error:", np.sum(np.abs(b1.flatten()-b2.flatten()))
 if __name__ == "__main__":

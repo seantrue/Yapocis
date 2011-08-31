@@ -11,7 +11,7 @@ MEMFLAGS= mf.READ_WRITE|mf.COPY_HOST_PTR
 
 from weakref import WeakValueDictionary
 class Engine(object):
-    def __init__(self, engine):
+    def __init__(self, engine,autoflatten=True):
         self.ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[engine]])
         self.queue = pyopencl.CommandQueue(self.ctx)
         # Buffer management
@@ -22,7 +22,7 @@ class Engine(object):
         self.misses = 0
         self.calls = 0
         self.runtime = 0.0
-
+        self.autoflatten=autoflatten
 
     def build(self, source):
         binary = pyopencl.Program(self.ctx, source)
@@ -46,30 +46,42 @@ class Engine(object):
         # TODO: Make a better force miss
         #living is None
         if living is None:
-            buf = pyopencl.Buffer(self.ctx, dirflag, hostbuf = arg)
+            buf = pyopencl.Buffer(self.ctx, dirflag, hostbuf=self.viewof(arg))
             self.context[argid] = arg
             self.buffers[argid] = buf
             self.context_meta[argid] = metadata
             self.misses += 1
         else:
             buf = self.buffers[argid]
+            arg = self.viewof(arg)
             if param[0] != "resident":
                 pyopencl.enqueue_copy(self.queue, buf, arg).wait()
             self.hits += 1
         return buf
+    def viewof(self, arg):
+        assert hasattr(arg,"dtype")
+        if self.autoflatten and len(arg.shape) > 1:
+            tmparg = arg.view()
+            tmparg.shape = (arg.size,)
+        else:
+            tmparg = arg
+        return tmparg
     def write(self, arg):
         # find or construct a buffer that matches the arg. 
-        # Param data will be (iparam=0, direction=mf.READ_WRITE|mf.COPY_HOST_PTR, dtype=dtype of arg, isbuffer=True)
+        # Param data will be (iparam=0, bufferHint=mf.READ_WRITE|mf.COPY_HOST_PTR, dtype=dtype of arg, isbuffer=True)
         assert hasattr(arg,"dtype")
         param = ("resident",arg.dtype,True)
         buf = self.findBuffer(arg,(MEMFLAGS,param))
+        arg = self.viewof(arg)
         pyopencl.enqueue_copy(self.queue, buf, arg).wait()
         return buf
     def read(self, arg):
         assert self.context.has_key(id(arg))
         param = ("resident",arg.dtype,True)
         buf = self.findBuffer(arg, (MEMFLAGS,param))
-        pyopencl.enqueue_copy(self.queue, arg, buf).wait()
+        tmparg = self.viewof(arg)
+        pyopencl.enqueue_copy(self.queue, tmparg, buf).wait()
+        del tmparg
         return arg
 
     
@@ -125,19 +137,22 @@ class Kernel:
         self.params = params
         self.ctx = engine.ctx
         self.queue = engine.queue
+        self.autoflatten = engine.autoflatten
     def prepareArgs(self, args):
         "Takes the actual arguments and maps to the arguments needed by the kernel"
         self.returns = []
         pargs = []
         iarg = 0
         paramdict = {}
-        for iparam,(direction, dtype, isbuffer, name) in enumerate(self.params):
-            if direction != "outlike":
-                paramdict[name] = (iparam, direction, dtype, isbuffer)
+        iparam = 0
+        for (bufferHint, dtype, isbuffer, name) in self.params:
+            if not bufferHint in ("outlike","sizeof","widthof","heightof"):
+                paramdict[name] = (iparam, bufferHint, dtype, isbuffer)
+                iparam += 1
         assert len(args) == len(paramdict)
         iarg = 0
         for param in self.params:
-            (direction, dtype, isbuffer, name) = param
+            (bufferHint, dtype, isbuffer, name) = param
             if dtype:
                 dtype = getattr(np, dtype)
             else:
@@ -153,17 +168,36 @@ class Kernel:
                 continue
             dirflag = mf.READ_WRITE|mf.COPY_HOST_PTR
             buf = None
-            if direction == "resident":
+            if bufferHint in ("sizeof","widthof","heightof"):
+                iparam, _, _, _ = paramdict[name]
+                arg = args[iparam]
+                if not dtype:
+                    dtype = np.int32
+                size,shape = arg.size, arg.shape
+                if len(shape) == 1:
+                    assert bufferHint == "sizeof"
+                if len(shape) == 2:
+                    width,height = shape
+                if bufferHint == "sizeof":
+                    parg = size
+                elif bufferHint == "widthof":
+                    parg = width
+                elif bufferHint == "heightof":
+                    parg = height
+                parg = dtype(parg)
+                pargs.append(parg)
+                continue
+            elif bufferHint == "outlike":
+                iparam, _, oldtype, _ = paramdict[name]
+                if not dtype:
+                    dtype = getattr(np, oldtype)
+                parg = np.zeros_like(args[iparam], dtype=dtype)
+            elif bufferHint == "resident":
                 arg = args[iarg]
                 parg = arg
                 iarg += 1
                 buf = self.program.findBuffer(parg, (dirflag, param))
                 assert buf, "Resident buffer is not present, array have gone out of scope"
-            elif direction == "outlike":
-                iparam, _, oldtype, _ = paramdict[name]
-                if not dtype:
-                    dtype = getattr(np, oldtype)
-                parg = np.zeros_like(args[iparam], dtype=dtype)
             elif not hasattr(args[iarg], "dtype") or args[iarg].dtype != dtype: 
                 arg = args[iarg]    
                 parg = np.array(arg, dtype=dtype)
@@ -172,12 +206,15 @@ class Kernel:
                 arg = args[iarg]
                 parg = arg
                 iarg += 1
-            # If we do not have an explicit global size, to to shape of first inbound array
-            if self.global_size is None and direction in ("in","inout","resident"):
-                self.global_size = parg.shape
+            # If we do not have an explicit global size, set to shape of first inbound array
+            if self.global_size is None and bufferHint in ("in","inout","resident"):
+                if self.autoflatten:
+                    self.global_size = parg.size
+                else:
+                    self.global_size = parg.shape
             if buf is None:
                 buf = self.program.findBuffer(parg, (dirflag, param))
-            if direction in ("out","inout","outlike"):
+            if bufferHint in ("out","inout","outlike"):
                 self.returns.append((parg, buf))
             pargs.append(buf)
         return pargs
@@ -201,7 +238,7 @@ class Kernel:
         "Takes the return value buffers (out and outlike) and prepares proper Numpy arrays"
         rvals = []
         for arg, buf in self.returns:
-            pyopencl.enqueue_copy(self.queue, arg, buf).wait()
+            pyopencl.enqueue_copy(self.queue, self.program.viewof(arg), buf).wait()
             rvals.append(arg)
         self.returns = []
         if len(rvals) == 0:
@@ -254,6 +291,8 @@ class Program:
         return self.engine.read(*args)
     def write(self, *args):
         return self.engine.write(*args)
+    def viewof(self, *args):
+        return self.engine.viewof(*args)
     def stats(self):
         return dict(calls=self.calls, hits=self.hits, misses=self.misses, buffers=len(self.buffers), runtime=self.runtime)
     def __str__(self):
@@ -279,7 +318,7 @@ def test_compiling():
     # TODO: as tests, this may fail on other systems. Replace with known hash
     
     sourcehashes = [6202013264865897877, -8119117248955560468, 7139354972159999745, -682776529868236564, 1403331523463003145, -7762762614049038277, 8451406568839298774]   
-    interfacehashes =[-2109316339629522021, -6764325105702059850, -590229354650820537, 3368954509243294669, -1415409027939469990, -6080957408847037761, 5075239760954339868]
+    interfacehashes =[6402197007761216735, -110486948446408996, 5834752055632543161, -9192547793151607825, 6003157927413075666, 1424139564779745970, 4108900838076230702]
     print "Interface search path", directories
     interfaces = [(convolve, dict(name="convolve", conv=[1,2,3,4,3,2,1])),
                   (median3x3, dict(steps=[9], width=9)),
@@ -291,7 +330,7 @@ def test_compiling():
                   ]
     for itest, (interface, context) in enumerate(interfaces):
         program =loadProgram(interface, engine=GPU_ENGINE, debug=True,**context)
-        assert interfacehashes[itest] == hash(program.interface.source), hash(program.interface.source)
+        assert interfacehashes[itest] == hash(program.interface.source), (interface, hash(program.interface.source))
         assert sourcehashes[itest] == hash(program.source), hash(program.source)
         print "Interface", program.interface.interfacename
         for kernel in program.interface.kernels():

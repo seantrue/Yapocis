@@ -6,13 +6,14 @@ Interface specification
 -----------------------
 
 Interface specifications allow Python to properly construct arguments and return values for  talking to the OpenCL code. The primary idiosyncracy is in the
-direction attributes that are supported. *in*, *inout*, and *out* are common. *resident* and *outlike* are unique to the yapocis implementation.
+direction attributes that are supported. *in*, *inout*, and *out* are common. *resident*, *outlike*, *sizeof*, *widthof*, and *heightof* are unique to the yapocis implementation.
 
 * *in* specifies that the array data should be copied into the engine before the call is made
 * *out* specifies that the array data should be copied out after the call
 * *inout* specifies that the data should be copied in and then back out
 * *outlike* specifies that an array should be allocated that matches the shape and datatype of the referenced array, used as an *out* array, and then returned as a return value of the call
 * *resident* specifies that the call is using data already resident on the engine, that had been loaded from the argument
+* *sizeof*, *widthof*, and *heightof* are used to generate parameters from the size or shape of the referenced array, which simplifies Python interface construction
 
 Buffer management
 -----------------

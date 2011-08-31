@@ -62,5 +62,5 @@ plot.figlegend( (l1, l2, l3, l4, l5),
                 'upper left', shadow=True)
 plot.xlabel("Pixels",fontsize="medium")
 plot.ylabel("Seconds",fontsize="medium")
-plot.savefig("../doc/images/median3x3-performance.png")
+plot.savefig("../../doc/images/median3x3-performance.png")
 plot.show()

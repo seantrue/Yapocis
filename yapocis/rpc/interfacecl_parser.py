@@ -30,38 +30,38 @@ def INTERFACECL_BNF():
         semi   = Literal(";")
         
         # keywords
-        alias_     = Keyword("alias")
-        as_        = Keyword("as")
         boolean_   = Keyword("boolean")
         char_      = Keyword("char")
         complex64_ = Keyword("complex64")
+        float_   = Keyword("float")
         float32_   = Keyword("float32")
         inout_     = Keyword("inout")
         interface_ = Keyword("interface")
         in_        = Keyword("in")
+        int_     = Keyword("int")
         int16_     = Keyword("int16")
         int32_     = Keyword("int32")
         kernel_    = Keyword("kernel")
         out_       = Keyword("out")
-        outlike_   = Keyword("outlike")
-        resident_   = Keyword("resident")
+        short_     = Keyword("short")
         uint16_     = Keyword("uint16")
         uint32_     = Keyword("uint32")
         void_      = Keyword("void")
+        # Special keywords 
+        alias_     = Keyword("alias")
+        as_        = Keyword("as")
+        outlike_   = Keyword("outlike")
+        resident_  = Keyword("resident")
+        widthof_   = Keyword("widthof")
+        heightof_  = Keyword("heightof")
+        sizeof_    = Keyword("sizeof") 
         
         identifier = Word( alphas, alphanums + "_" )
-        
-        real = Combine( Word(nums+"+-", nums) + dot + Optional( Word(nums) ) + Optional( CaselessLiteral("E") + Word(nums+"+-",nums) ) )
-        integer = ( Combine( CaselessLiteral("0x") + Word( nums+"abcdefABCDEF" ) ) | Word( nums+"+-", nums ) )
-
-        typeName = (boolean_ ^ char_  ^ 
-                    int16_ ^ int32_ 
-                    ^ float32_ ^ complex64_ ^
-                    uint16_ ^ uint32_)
-
-        paramlist = delimitedList( Group( ( inout_ | in_ | out_ | outlike_ | resident_) + Optional(typeName) + Optional(star) + identifier))
-        interfaceItem = ( ( kernel_ ^ void_ ^ alias_ ^ typeName ) + identifier + Optional(Group(as_ +identifier)) + lparen + Optional( paramlist ) + rparen + semi)
-        interfaceDef = Group( interface_ + identifier  + lbrace + ZeroOrMore( interfaceItem) + rbrace + semi )
+        typeName = (boolean_ ^ char_  ^ int16_ ^ int32_ ^ float32_ ^ complex64_ ^ uint16_ ^ uint32_ ^ int_ ^ float_ ^ short_)
+        bufferHints = (inout_ | in_ | out_ | outlike_ | resident_ | widthof_ | heightof_ | sizeof_)
+        paramlist = delimitedList( Group(bufferHints + Optional(typeName) + Optional(star) + identifier))
+        interfaceItem = ((kernel_^void_^alias_^typeName) + identifier + Optional(Group(as_+identifier)) + lparen + Optional(paramlist) + rparen + semi)
+        interfaceDef = Group(interface_ + identifier  + lbrace + ZeroOrMore(interfaceItem) + rbrace + semi)
         moduleItem = interfaceDef
 
         bnf = OneOrMore( moduleItem )
@@ -90,6 +90,7 @@ class InterfaceCL:
     def kernelalias(self, kernelname):
         return self.kernelaliases.get(kernelname,kernelname)
 
+dtypemap={"int":"int32","float":"float32","short":"int16"}
 def fixParam(param):
     """\
     Deals with variants of parameter specifications, returns a uniform array of information.
@@ -100,13 +101,13 @@ def fixParam(param):
     # Length 4 direction, dtype, *, identifier
     op = ["","","",""]
     if len(param) == 2:
-        assert param[0] in ("outlike","resident")
+        assert param[0] in ("outlike","resident","sizeof","widthof","heightof")
         op[0] = param[0]
         op[2] = '*'
         op[3] = param[1]
     elif len(param) == 3:
-        assert param[0] in ("in","outlike")
-        if param[0] == "outlike":
+        assert param[0] in ("in","outlike","sizeof","widthof","heightof")
+        if param[0] in ("outlike","sizeof","widthof","heightof"):
             op[0] = param[0]
             op[1] = param[1]
             op[2] = '*'
@@ -117,6 +118,8 @@ def fixParam(param):
             op[3] = param[2]
     else:
         op = param
+    # Map from OpenCL datatype to a numpy data type
+    op[1] = dtypemap.get(op[1],op[1])
     return op
         
         
@@ -168,8 +171,8 @@ def test_getinterfacecl():
     interface = getInterfaceCL(
         """
         interface boundedmedian {
-             kernel boundedmedian(in int32 offset, in float32 *input, in int32 *zcs, outlike int16 input, out int16 *trace);
-             alias bm as boundedmedian(in int32 offset, resident float32 *input, in int32 *zcs, resident float32 *input, out int16 *trace);
+             kernel boundedmedian(sizeof int input, in float32 *input, in int32 *zcs, outlike int16 input, out short *trace);
+             alias bm as boundedmedian(in int32 offset, resident float32 *input, in int32 *zcs, resident float *input, out int16 *trace);
           };
         """
         )
@@ -182,7 +185,7 @@ def test_getinterfacecl():
             assert len(param) == 4
             print "Param:", param,
             direction, dtype, isbuffer, name = param
-            assert direction in ("in","out","inout","outlike","resident")
+            assert direction in ("in","out","inout","outlike","resident","sizeof","widthof","heightof")
             if direction == "outlike":
                 assert name in symbols
                 iparam, olparam = symbols[name]
@@ -193,7 +196,7 @@ def test_getinterfacecl():
                 symbols[name] = iparam,param
                 iparam += 1
             assert isbuffer in ("*","")
-            assert dtype in ("int16", "int32", "float32","uint16","uint32","complex64")
+            assert dtype in ("int16", "int32", "float32","uint16","uint32","complex64","int","float","short")
             togpu = direction in ("in","inout")
             fromgpu = direction in ("out","inout","outlike")
             if isbuffer:
@@ -201,6 +204,8 @@ def test_getinterfacecl():
                     print "Buffer is resident on GPU.",
                 elif direction == "outlike":
                     print "Allocate a buffer like %(name)s (position=%(iparam)s). (%(olparam)s)" % locals(),
+                elif direction in  ("sizeof","heightof","widthof"):
+                    print "Pass in %s of %s" % (direction,name),
                 else:
                     print "Coerce %(name)s to numpy.%(dtype)s. " % locals(), 
                     print "Allocate a buffer for %(name)s. " % locals(),

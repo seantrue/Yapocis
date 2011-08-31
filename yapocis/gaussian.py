@@ -73,7 +73,7 @@ def test_kernels():
     for g, gkernel in zip(gs,gkernels):
         a = np.zeros((256,), dtype=np.float32)
         a[127] = 1.0
-        a = gkernel(a.size, a)
+        a = gkernel(a)
         assert areclose(a.sum(), g.sum())
         # Compare in order of lowest precision
         assert areclose(a.sum(),1.0)
@@ -82,12 +82,12 @@ def gaussImage(image, kernel):
     shaper = Shaper(image)
     left = kernel.info["left"]
     flat = shaper.asrows()
-    flat = kernel(flat.size, flat)
+    flat = kernel(flat)
     flat[:left] = 0
     flat[-left:] = 0
     shaper.update(flat)
     flat = shaper.ascols()
-    flat = kernel(flat.size, flat)
+    flat = kernel(flat)
     flat[:left] = 0
     flat[-left:] = 0
     shaper.update(flat)
