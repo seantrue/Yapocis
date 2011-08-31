@@ -99,14 +99,18 @@ There are several. Here are some I remember:
 
 * Untested in any other environment, as noted. 
 
+* The requirements.txt does not include matplotlib or scipy, which are needed for some performance comparisons and demos.
+
 Changes and new features
 ------------------------
 
 * Reducing data movement between engine and Python code. This is implemented using an alias keyword to add alternate signatures to a kernel, and
 a resident parameter hint which hints the glue code to just use the buffer as-is on the engine. V0.2.2
+
 * Framework for dealing with two-dimensional arrays auto-magically. New buffer hints: sizeof, widthof, heightof for setting arguments invisibly.
+
 * The OpenCL engine to use is configured in rpc.kernels. Developer has choice of CPU_ENGINE and GPU_ENGINE.
-* The requirements.txt does not include matplotlib or scipy, which are needed for some performance comparisons and demos.
+
 
 Future features
 ---------------
