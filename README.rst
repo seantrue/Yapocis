@@ -119,3 +119,4 @@ Other than removing the misfeatures:
 
 * Selecting the OpenCL based on strategy (operation and image size).
 
+
