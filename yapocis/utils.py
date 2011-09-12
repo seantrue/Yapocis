@@ -1,6 +1,10 @@
 from PIL import Image #@UnresolvedImport
 import numpy as np
 DEBUG=False
+try:
+    from preview import view
+except:
+    view = None
 
 
 # bytescale, fromimage, toimage borrowed from scipy.misc
@@ -273,8 +277,13 @@ def _showArray(title, image):
     return img
 
 def showArray(title,image):
-    img = _showArray(title, image)
-    img.show()
+   img =  _showArray(title, image)
+   if view is None:
+       img.show()
+   else:
+       fname = "/tmp/%s.png" % title.strip().replace(" ","").lower()
+       img.save(fname)
+       view(fname)
 
 def showArrayGrad(title, image, theta, grad=None):
     from PIL import ImageDraw #@UnresolvedImport
@@ -309,7 +318,12 @@ def showArrayGrad(title, image, theta, grad=None):
             else:
                 color = "white"
             draw.line([(x1,y1),(x2,y2)],fill=color)
-    img.show()
+    if view is None:
+        img.show()
+    else:
+        fname = "/tmp/%s.png" % title.strip().replace(" ","").lower()
+        img.save(fname)
+        view(fname)
 
 class Shaper:
     def __init__(self, data):
@@ -366,6 +380,29 @@ def histeq(im,nbr_bins=256):
     cdf = 255 * cdf / cdf[-1] #normalize
     im2 = np.interp(im.flatten(),bins[:-1],cdf)
     return im2.reshape(im.shape), cdf
+
+ALIGNMENT=4
+def alignImage(image):
+    assert len(image.shape) in (2,3)
+    width,height = image.shape[:2]
+    oddw,oddh = width % ALIGNMENT, height % ALIGNMENT
+    if oddw==0 and oddh==0:
+        return image.copy()
+    evenw = width-oddw if oddw else width
+    evenh = height-oddh if oddh else height
+    if len(image.shape) == 2:
+        aligned = np.empty((evenw,evenh), dtype=image.dtype)
+        aligned[:,:] = image[:evenw,:evenh]
+    else:
+        aligned = np.empty((evenw,evenh,image.shape[2]), dtype=image.dtype)
+        aligned[:,:,:] = image[:evenw,:evenh,:]
+    return aligned
+
+def normalize(a):
+    a = a-a.min()
+    a = a/(a.max()*1.000001)
+    return a
+
 
 if __name__ == "__main__":
     # TODO: Add tests here
