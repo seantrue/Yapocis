@@ -11,6 +11,13 @@ interface demo {
     };
 """
 
+# Test addressing calculation
+xy = """
+    interface xy {
+        kernel addr(widthof a, heightof a, in int *a, outlike a, outlike a, outlike a, outlike a);
+    };
+"""
+
 # 1D convolution kernel, with parameterized name
 convolve = """
     interface convolve {
@@ -24,6 +31,32 @@ convolves = """
 %for name,conv in convs:
         kernel ${name}(sizeof a, in float* a, outlike a);
 %endfor 
+    };
+"""
+# Separable 2-D kernels, with name and conv (mask) parameterized
+convolvesep = """
+    interface convolvesep {
+%for name,conv in convs:
+        kernel ${name}(in int vertical, widthof input, heightof input, in float* input, outlike input);
+        alias ${name}_res as ${name}(in int vertical, widthof input, heightof input, resident float* input, resident float *output);
+%endfor 
+    };
+"""
+# Array operations
+operators = """
+    interface operators {
+%for name, operator in operators:
+    kernel ${name}(in float *input1, in float *input2, outlike input1);
+    alias ${name}_res as ${name}(resident float *input1, resident float *input2, resident float *output);
+%endfor
+    };
+"""
+
+# Zero crossing
+zcs = """
+    interface zcs {
+        kernel zcs(widthof int input, heightof int input, in float *input, outlike input);
+        alias zcs_res as zcs(widthof int input, heightof int input, resident float *input, resident float *zcs);
     };
 """
 
@@ -56,5 +89,6 @@ mandelbrot = """
 gradient = """
     interface gradient {
         kernel gradient(sizeof int a, heightof int a, in float* a, in int reach, outlike a, outlike a );
+        alias gradient_res as gradient(sizeof int a, heightof int a, resident float* a, in int reach, resident float *grad, resident float *theta );
     };
 """

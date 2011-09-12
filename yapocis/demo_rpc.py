@@ -13,7 +13,7 @@ def test():
     from median import median3x3
     from gradient import gradient
     from hsi import rgb2hsi, hsi2rgb, joinChannels, splitChannels
-
+    
     # Create a noisy image with an embedded white square
     image = np.zeros((201,199),dtype=np.float32)
     width,height = image.shape
@@ -37,6 +37,13 @@ def test():
     showArray("S",s)
     showArray("H",h)
 
+    from gaussian import gaussImage
+    blur = gaussImage(i, 3)
+    showArray("Blur", blur)
+    blurmore = gaussImage(i,4)
+    dog = blur-blurmore
+    showArray("DOG", dog)
+    
     g,a = gradient(i,5)
     showArray("Gradient",g)
     showArray("Angle", a)

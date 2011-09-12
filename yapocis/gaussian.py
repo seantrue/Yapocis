@@ -1,7 +1,8 @@
 import numpy as np
 from rpc import interfaces, kernels
 
-from utils import Shaper
+from utils import showArray, alignImage
+from gradient import gradient, gradient_res
 
 def areclose(a,b):
     eps = .00001
@@ -31,7 +32,7 @@ def gauss_1d(sigma=1., dt=1., limit=.01, normalize=True):
     
     return k
 
-def test_gaussian():
+def test_gaussian_1d():
     "Make sure that the kernel sums back to 1"
     g = gauss_1d()
     assert areclose(g.sum(), 1.0)
@@ -56,60 +57,139 @@ def test_gaussians():
     gs = gaussians(maxwidth=mw)
     for g in gs:
         assert len(g) < mw
-    
 
-def gaussianKernels(gs, engine=kernels.CPU_ENGINE):
+program = None
+def gaussianKernels(gs):
+    global program
     convs = [("gauss%s" % len(a),a) for a in gs]
-    program = kernels.loadProgram(interfaces.convolves,convs=convs)
+    convsres = [("gauss%s_res" % len(a),a) for a in gs]
+    program = kernels.loadProgram(interfaces.convolvesep,convs=convs)
     krnls = [getattr(program, name) for (name, conv) in convs]
     for i, (name, conv) in enumerate(convs):
-        krnls[i].info = dict(left=len(conv)/2, width=len(conv))
+        krnls[i].res = getattr(program,convsres[i][0])
+        krnls[i].width = len(conv)
     return krnls
 
+_gaussian_basis = gaussians()
+def getGaussian(scale):
+    assert 0 <= scale and scale < len(_gaussian_basis)
+    return _gaussian_basis[scale]
+def getScales():
+    return(len(_gaussian_basis))
+def getGaussianWidth(scale):
+    return len(getGaussian(scale))
+_gaussian_kernels = gaussianKernels(_gaussian_basis)
+def getKernels():
+    return _gaussian_kernels
+def getKernel(scale):
+    assert 0 <= scale and scale < len(_gaussian_kernels)
+    return _gaussian_kernels[scale]
+
 def test_kernels():
-    gs = gaussians()
-    gkernels = gaussianKernels(gs)
-    assert len(gs) == len(gkernels)
-    for g, gkernel in zip(gs,gkernels):
-        a = np.zeros((256,), dtype=np.float32)
-        a[127] = 1.0
-        a = gkernel(a)
-        assert areclose(a.sum(), g.sum())
+    for scale in range(getScales()):
+        gkernel = getKernel(scale)
+        a = np.zeros((256,256), dtype=np.float32)
+        a[127,127] = 1.0
+        b = gkernel(1,a)
+        gsum = getGaussian(scale).sum()
+        assert areclose(b[127,:].sum(),gsum)
+        b = gkernel(0,a)
+        assert areclose(b[:,127].sum(), gsum)
         # Compare in order of lowest precision
         assert areclose(a.sum(),1.0)
 
-def gaussImage(image, kernel):
-    shaper = Shaper(image)
-    left = kernel.info["left"]
-    flat = shaper.asrows()
-    flat = kernel(flat)
-    flat[:left] = 0
-    flat[-left:] = 0
-    shaper.update(flat)
-    flat = shaper.ascols()
-    flat = kernel(flat)
-    flat[:left] = 0
-    flat[-left:] = 0
-    shaper.update(flat)
-    return shaper.asimage()
+def gaussImage(a, scale):
+    g = getKernel(scale)
+    b = g(0,a)
+    c = g(1,b)
+    return c.copy()
 
 def test_gaussImage():
-    gs = gaussians()
-    gkernels = gaussianKernels(gs, engine=kernels.GPU_ENGINE)
-    assert len(gs) == len(gkernels)
-    import time
-    t = time.time()
-    for g, gkernel in zip(gs,gkernels):
-        a = np.zeros((512,512), dtype=np.float32)
-        a[255,255] = 1.0
-        a = gaussImage(a, gkernel)
-        # Compare in order of lowest precision
-    print "Seconds", time.time()-t
+    for scale in range(getScales()):
+        a = np.zeros((400,700), dtype=np.float32)
+        a[200,:] = 1.0
+        a[:,200] = 1.0
+        for xy in range(400):
+            a[xy,xy] = 1.0
+        b = gaussImage(a, scale)
+        showArray("GI%s" % scale, b)
+        
+from operators import sub_res, sub
+from zcs import zcs,  zcs_res
+
+def setMargin(a, margin, value=0.0):
+    a[:,-margin:] = value
+    a[:,:margin] = value
+    a[-margin:,:] = value
+    a[:margin,:] = value
     
 
+def zcsdog(a, scale,clearmargin=True,frame=True, res=True):
+    if res:
+        g = getKernel(scale)
+        g1 = getKernel(scale+1)
+        g.write(a)
+        smaller = np.empty_like(a)
+        larger = np.empty_like(a)
+        tmp = np.empty_like(a)
+        zca = np.empty_like(a)
+        #g.write(smaller)
+        #g.write(larger)
+        #g.write(tmp)
+        #g.write(zca)
+        g.res(0,a,tmp)
+        g.res(1,tmp,smaller)
+        g1.res(0,a,tmp)
+        g1.res(1,tmp,larger)
+        sub_res(larger,smaller,tmp)
+        zcs_res(tmp,zca)
+        g.read(zca)
+        g.read(smaller)
+    else:
+        smaller = gaussImage(a,scale)
+        larger = gaussImage(a,scale+1)
+        dog = smaller - larger
+        zca = zcs(dog)
+    zca = np.int32(zca)
+    # Zero out of bounds and create a frame.
+    grad,theta = gradient(smaller)
+    margin = getGaussianWidth(scale)+1
+    if clearmargin:
+        setMargin(zca, margin)
+        setMargin(grad,margin)
+        setMargin(theta,margin)
+    if frame:
+        zca[0:,0:] = 1.0
+        zca[0:,:-1] = 1.0
+        zca[-1:,0:] = 1.0
+        zca[-1:,-1:] = 1.0
+        zca[margin,:-margin:margin] = 1.0
+        zca[-margin:margin,margin] = 1.0
+        zca[-margin,-margin:margin] = 1.0
+        zca[-margin:margin,-margin] = 1.0
+    return zca.copy(),grad.copy(),theta.copy()
+
+def test_zcs():
+    import time
+    for res in (False, True):
+        subtotal = 0.0
+        for scale in range(getScales()-1):
+            a = np.zeros((1200,1800), dtype=np.float32)
+            a[200,:] = 1.0
+            a[:,200] = 1.0
+            t = time.time()
+            zca,grad,theta = zcsdog(a,scale)
+            subtotal += (time.time()-t)
+            showArray("org %s" % scale, a)
+            showArray("zcs %s" % scale, zca)
+            showArray("grad %s" % scale, grad)
+            showArray("theta %s" % scale, theta)
+        print "Res", res, subtotal
+        
 if __name__ == "__main__":
-    test_gaussian()
-    test_gaussians()
-    test_kernels()
-    test_gaussImage()
+    #test_gaussian_1d()
+    #test_gaussians()
+    #test_kernels()
+    #test_gaussImage()
+    test_zcs()
     print "All is well"

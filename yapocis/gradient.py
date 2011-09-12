@@ -11,7 +11,7 @@ from rpc import kernels, interfaces
 
 program = kernels.loadProgram(interfaces.gradient, engine=kernels.GPU_ENGINE)
 gradientcl = program.gradient
-
+gradient_res = program.gradient_res
 def gradient(image,reach=1):
     grad,angle = gradientcl(image, reach)
     return grad, angle

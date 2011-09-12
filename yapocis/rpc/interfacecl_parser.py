@@ -91,6 +91,11 @@ class InterfaceCL:
         return self.kernelaliases.get(kernelname,kernelname)
 
 dtypemap={"int":"int32","float":"float32","short":"int16"}
+
+def expected(token, tokens):
+    if token in tokens:
+        return
+    raise ValueError("Found %s, expected %s" % (token, tokens))
 def fixParam(param):
     """\
     Deals with variants of parameter specifications, returns a uniform array of information.
@@ -101,12 +106,12 @@ def fixParam(param):
     # Length 4 direction, dtype, *, identifier
     op = ["","","",""]
     if len(param) == 2:
-        assert param[0] in ("outlike","resident","sizeof","widthof","heightof")
+        expected(param[0], ("outlike","resident","sizeof","widthof","heightof"))
         op[0] = param[0]
         op[2] = '*'
         op[3] = param[1]
     elif len(param) == 3:
-        assert param[0] in ("in","outlike","sizeof","widthof","heightof")
+        expected(param[0], ("in","outlike","resident", "sizeof","widthof","heightof"))
         if param[0] in ("outlike","sizeof","widthof","heightof"):
             op[0] = param[0]
             op[1] = param[1]

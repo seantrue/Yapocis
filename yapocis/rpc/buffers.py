@@ -35,23 +35,22 @@ class BufferManager(object):
         # Buffer management
         self.arrays = Weak()
         self.buffers = {}
-        self.buffer_for = {}
+        self.hits = self.misses = 0
+        self.purged = 0
         
     def purgeBuffers(self):
         # Drop buffers if no array or data buffer is referencing them
         ids = set(self.arrays.keys())
-        for id in self.buffer_for.keys():
+        for id in self.buffers.keys():
             if not id in ids:
-                del self.buffer_for[id]
+                del self.buffers[id]
+                self.purged += 1
     def makeBuffer(self, a):
 #        print "makeBuffer", id(a), a.shape, a.size, id(a.data)
         buf = pyopencl.Buffer(self.ctx, self.MEMFLAGS, hostbuf=a)
-        bid = id(buf)
         aid = id(a)
-        did = id(a.data)
         self.arrays[aid] = a
-        self.buffers[bid] = buf
-        self.buffer_for[aid] = bid
+        self.buffers[aid] = buf
         return buf
 
     def ensureBuffer(self, a):
@@ -91,10 +90,13 @@ class BufferManager(object):
         assert op in (self.READ, self.WRITE)
         self.purgeBuffers()
         aid = id(a)
-        havea = aid in self.buffer_for
+        havea = aid in self.buffers
         # Complete match, easy decision
         if havea:
-            return self.buffers[self.buffer_for[aid]]
+            self.hits += 1
+            return self.buffers[aid]
+        else:
+            self.misses += 1
         # No match at all, also easy.
         if not havea:
             # Reading an array back with no matching buffer is fatal
@@ -104,7 +106,7 @@ class BufferManager(object):
         raise "Epic fail"
         
 def test_buffers():
-    bmgr = BufferManager(GPU_ENGINE)
+    bmgr = BufferManager(CPU_ENGINE)
     a = np.random.sample((100,)).astype(np.float32)
     b = a.copy()
     bmgr.writeBuffer(a)

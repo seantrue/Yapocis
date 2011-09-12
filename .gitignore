@@ -24,3 +24,6 @@
 
 /yapocis.egg-info/
 /doc/_build/
+/yapocis/preview.py
+/.pydevproject
+/.project
