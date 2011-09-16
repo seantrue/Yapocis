@@ -13,7 +13,7 @@ yapocisfast_deltas = []
 yapocis_deltas = []
 numpy_deltas = []
 errors = []
-ITERATIONS=10
+ITERATIONS=20
 SAMPLES=50
 STEP=40
 for i in range(0,SAMPLES):
@@ -25,7 +25,7 @@ for i in range(0,SAMPLES):
     numpy_delta = time.time() - t
     
     t = time.time()
-    output2 = median.median3x3(img,ITERATIONS)
+    output2 = median.median3x3slow(img,ITERATIONS)
     yapocis_delta = time.time() - t
     
     t = time.time()
@@ -47,7 +47,7 @@ yapocisfast_deltas = np.array(yapocisfast_deltas)
 ratio = yapocis_deltas/numpy_deltas
 ratio2 = yapocisfast_deltas/numpy_deltas
 p = plot.subplot(111)
-plot.title("Median 3x3 filter performance",fontsize="large")
+plot.title("Median 3x3 filter, %s iterations" % ITERATIONS,fontsize="large")
 l1 = plot.plot(areas, numpy_deltas,color="lightgreen")
 l2 = plot.plot(areas, yapocis_deltas,color="pink")
 l3 = plot.plot(areas, yapocisfast_deltas,color="yellow")

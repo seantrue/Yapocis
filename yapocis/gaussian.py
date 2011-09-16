@@ -1,7 +1,7 @@
 import numpy as np
 from rpc import interfaces, kernels
 
-from utils import showArray, alignImage
+from utils import showArray, alignImage, setMargin, setFrame
 from gradient import gradient, gradient_res
 
 def areclose(a,b):
@@ -117,26 +117,19 @@ def test_gaussImage():
 from operators import sub_res, sub
 from zcs import zcs,  zcs_res
 
-def setMargin(a, margin, value=0.0):
-    a[:,-margin:] = value
-    a[:,:margin] = value
-    a[-margin:,:] = value
-    a[:margin,:] = value
-    
-
 def zcsdog(a, scale,clearmargin=True,frame=True, res=True):
     if res:
         g = getKernel(scale)
         g1 = getKernel(scale+1)
         g.write(a)
-        smaller = np.empty_like(a)
-        larger = np.empty_like(a)
-        tmp = np.empty_like(a)
-        zca = np.empty_like(a)
-        #g.write(smaller)
-        #g.write(larger)
-        #g.write(tmp)
-        #g.write(zca)
+        smaller = np.zeros_like(a)
+        larger = np.zeros_like(a)
+        tmp = np.zeros_like(a)
+        zca = np.zeros_like(a)
+        g.write(smaller)
+        g.write(larger)
+        g.write(tmp)
+        g.write(zca)
         g.res(0,a,tmp)
         g.res(1,tmp,smaller)
         g1.res(0,a,tmp)
@@ -150,7 +143,6 @@ def zcsdog(a, scale,clearmargin=True,frame=True, res=True):
         larger = gaussImage(a,scale+1)
         dog = smaller - larger
         zca = zcs(dog)
-    zca = np.int32(zca)
     # Zero out of bounds and create a frame.
     grad,theta = gradient(smaller)
     margin = getGaussianWidth(scale)+1
@@ -159,14 +151,7 @@ def zcsdog(a, scale,clearmargin=True,frame=True, res=True):
         setMargin(grad,margin)
         setMargin(theta,margin)
     if frame:
-        zca[0:,0:] = 1.0
-        zca[0:,:-1] = 1.0
-        zca[-1:,0:] = 1.0
-        zca[-1:,-1:] = 1.0
-        zca[margin,:-margin:margin] = 1.0
-        zca[-margin:margin,margin] = 1.0
-        zca[-margin,-margin:margin] = 1.0
-        zca[-margin:margin,-margin] = 1.0
+        setFrame(zca, margin)
     return zca.copy(),grad.copy(),theta.copy()
 
 def test_zcs():
@@ -184,7 +169,7 @@ def test_zcs():
             showArray("zcs %s" % scale, zca)
             showArray("grad %s" % scale, grad)
             showArray("theta %s" % scale, theta)
-        print "Res", res, subtotal
+        print "Res", res, "seconds", subtotal
         
 if __name__ == "__main__":
     #test_gaussian_1d()

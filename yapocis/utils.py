@@ -249,14 +249,12 @@ def sign(title, image):
 def _showArray(title, image):
     from PIL import ImageFont #@UnresolvedImport
     from PIL import ImageDraw #@UnresolvedImport
-    shape = image.shape
-    if DEBUG and len(shape) == 2:
-        print title, shape
-        for y in range(shape[0]):
-            print np.int32(image[y,:]*1000)/1000.
-        print "="*32
-        print
-    img = toimage(image)
+    try:
+        shape = image.shape
+        img = toimage(image)
+    except:
+        shape = image.size
+        img = image
     font = ImageFont.truetype("/System/Library/Fonts/AppleGothic.ttf",25)
     #font = ImageFont.truetype("zapfino.ttf",25)
     draw = ImageDraw.Draw(img)
@@ -402,6 +400,26 @@ def normalize(a):
     a = a-a.min()
     a = a/(a.max()*1.000001)
     return a
+
+
+def setMargin(a, margin, value=0.0):
+    a[:,-margin:] = value
+    a[:,:margin] = value
+    a[-margin:,:] = value
+    a[:margin,:] = value
+
+def setFrame(a, margin):
+    setMargin(a, margin)
+    a[0,:] = 1.0
+    a[:,0] = 1.0
+    a[-1,:] = 1.0
+    a[:,-1] = 1.0
+    # TODO: should not include corners
+    a[margin,:] = 1.0
+    a[:,margin] = 1.0
+    a[-margin,:] = 1.0
+    a[:,-margin] = 1.0
+    
 
 
 if __name__ == "__main__":
