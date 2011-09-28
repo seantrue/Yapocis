@@ -1,5 +1,6 @@
 #define eps FLT_EPSILON
-#define pi 1.0
+#define pi 1.0f
+#define UNSAT .001f
 
 __constant float pi1o3 = (pi/3.0);
 __constant float pi2o3 = (2.0*pi/3.0);
@@ -20,27 +21,23 @@ void rgb2hsi(__global float *ra, __global float *ga, __global float *ba, __globa
      float den = sqrt((rlg*rlg) + (rlb*glb));
      H = acospi(num/(den + eps));
      H = b<=g ? H : (2*pi)-H;
-     H = H/(2*pi);
+     H = H*0.5;
      trace[i] = H;
      
     num = r < g ? r : g;
     num = r < b ? r : b;
     den = r + g + b;
-    den = den==0? eps : den;
+    den = den <= eps ? eps : den;
     S = 1 - 3.* num/den; 
     H = S==0 ? 0 : H;
-    I = (r + g + b)/3; 
+    I = (r + g + b) * (1.0/3.0); 
     
-    H = H >= 0.0 ? H: 0.0;
-    S = S >= 0.0 ? S: 0.0;
-    I = I >= 0.0 ? I: 0.0;
-    
-    S = I < eps ?  0.0 : S;
-    H = I < eps ?  0.0 : H;
+    //S = I < eps ?  0.0 : S;
+    //H = I < eps ?  0.0 : H;
 
-    ha[i] = H < 1.0 ? H : 1.0-eps; 
-    sa[i] = S < 1.0 ? S : 1.0-eps;
-    ia[i] = I < 1.0 ? I : 1.0-eps;
+    ha[i] = clamp(H, 0.0f, 1.0f-eps);
+    sa[i] = clamp(S, 0.0f, 1.0f-eps);
+    ia[i] = clamp(I, 0.0f, 1.0f-eps);
 }
 
 
@@ -71,15 +68,11 @@ void hsi2rgb(__global float *ha, __global float *sa, __global float *ia, __globa
     B = sector ? I * (1.0 + (S*ratio(H,pi4o3,pi5o3))) : B;
     R = sector ? 3.0*I - (G+B) : R;
 
-    R = R >= 0.0 ? R: 0.0;
-    G = G >= 0.0 ? G: 0.0;
-    B = B >= 0.0 ? B: 0.0;
+    R = S < UNSAT ? I : R;
+    G = S < UNSAT ? I : G;
+    B = S < UNSAT ? I : B;
 
-    R = S < eps ? I : R;
-    G = S < eps ? I : G;
-    B = S < eps ? I : B;
-
-    ra[i] = R < 1.0 ? R : 1.0-eps;
-    ga[i] = G < 1.0 ? G : 1.0-eps;
-    ba[i] = B < 1.0 ? B : 1.0-eps;
+    ra[i] = clamp(R, 0.0f, 1.0f-eps);
+    ga[i] = clamp(G, 0.0f, 1.0f-eps);
+    ba[i] = clamp(B, 0.0f, 1.0f-eps);
 }

@@ -193,9 +193,26 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
     image = Image.fromstring(mode, shape, strdata)
     return image
 
-def imread(filename):
+def imread(filename, longest=None):
     img = Image.open(filename)
-    return fromimage(img)
+    if longest != None:
+        width, height = img.size[0],img.size[1]
+        resize = False
+        if width > height and width > longest:
+            height = int(float(height/width)*longest)
+            width = longest
+            resize = True
+        elif height >= width and height > longest:
+            width = int(float(width/height)*longest)
+            height = longest
+            resize = True
+        if resize:
+            img = img.resize((width,height))
+    a = fromimage(img)
+    if len(a.shape) == 3 and a.shape[2] == 4:
+        print "Dropping alpha"
+        a = a[:,:,0:3]
+    return a
 
 import time
 class Stage:
@@ -216,18 +233,24 @@ class Stage:
 
 stage = Stage()
 
-def sign(title, image):
+def sign(title, img):
     from PIL import ImageFont #@UnresolvedImport
     from PIL import ImageDraw #@UnresolvedImport
-    if hasattr(image, "dtype"):
-        shape = image.shape
-        img = toimage(image)
+    if hasattr(img, "dtype"):
+        img = toimage(img)
+    shape = img.size
+    width, height = shape[0],shape[1]
+    if height > 480:
+        fheight = height/30
+        fheight = 5*(fheight/5)
+        if fheight % 5:
+            fheight += 5
     else:
-        shape = image.size
-        img = image
-    width, height = shape
-    #font = ImageFont.truetype("/System/Library/Fonts/AppleGothic.ttf",25)
-    font = ImageFont.truetype("zapfino.ttf",15)
+        fheight = 16
+    try:
+        font = ImageFont.truetype("zapfino.ttf",fheight)
+    except:
+        font = ImageFont.truetype("/System/Library/Fonts/AppleGothic.ttf",fheight)
     draw = ImageDraw.Draw(img)
     try:
         pixels = [img.getpixel((x,height-15)) for x in range(10,30)]
@@ -240,15 +263,26 @@ def sign(title, image):
     except:
         ink = 0
     if len(shape) > 2:
-        ink = [ink] * shape[-1]
-        ink = tuple(ink)
+        ink = tuple(ink,ink,ink)
+    if ink:
+        ink = "white"
+    else:
+        ink = "black"
     draw.text((10, height-75), title, ink,font=font)
     return img
 
 
-def _showArray(title, image):
+_showArrayCounter = 0
+def _showArray(*args):
+    global _showArrayCounter
+    _showArrayCounter += 1
     from PIL import ImageFont #@UnresolvedImport
     from PIL import ImageDraw #@UnresolvedImport
+    image = args[-1]
+    args = args[:-1]
+    title = " ".join([str(arg) for arg in args]).strip()
+    if not title:
+        title = "showarray %s" % _showArrayCounter 
     try:
         shape = image.shape
         img = toimage(image)
@@ -272,10 +306,10 @@ def _showArray(title, image):
         ink = [ink] * shape[-1]
         ink = tuple(ink)
     draw.text((10, 10), title, ink,font=font)
-    return img
+    return title,img
 
-def showArray(title,image):
-   img =  _showArray(title, image)
+def showArray(*args):
+   title,img =  _showArray(*args)
    if view is None:
        img.show()
    else:
@@ -285,12 +319,13 @@ def showArray(title,image):
 
 def showArrayGrad(title, image, theta, grad=None):
     from PIL import ImageDraw #@UnresolvedImport
-    img = _showArray(title, image).convert("RGB")
+    title,img = _showArray(title, image)
+    img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
     width, height = img.size
     if grad is None:
         grad = np.zeros_like(theta)
-        grad[:,:] = 10
+        grad[:,:] = 5
     else:
         grad = grad.copy()
         grad -= grad.min()

@@ -1,5 +1,5 @@
 #define eps FLT_EPSILON
-#define pi 3.14159265359
+#define pi 3.141592653589793
 __kernel
 void gradient(int awidth, int height, __global float* a, int reach, __global float* grad, __global float* angle)
 {
