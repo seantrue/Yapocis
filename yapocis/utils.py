@@ -331,8 +331,8 @@ def showArrayGrad(title, image, theta, grad=None):
         grad -= grad.min()
         grad /= grad.max()
         grad *= 10
-    cos = np.cos(theta*2*3.14159)
-    sin = np.sin(theta*2*3.14159)
+    cos = np.cos(theta*3.14159)
+    sin = np.sin(theta*3.14159)
     for x in range(10,width-10,5):
         for y in range(10,height-10,5):
             i,j  =y, x

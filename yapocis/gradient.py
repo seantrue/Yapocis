@@ -13,8 +13,10 @@ program = kernels.loadProgram(interfaces.gradient, engine=kernels.GPU_ENGINE)
 gradientcl = program.gradient
 gradient_res = program.gradient_res
 def gradient(image,reach=1):
-    grad,angle = gradientcl(image, reach)
-    return grad, angle
+    grad,theta = gradientcl(image, reach)
+    # TODO: gradientCL should not be returning nans, and is
+    theta[np.where(np.isnan(theta))] = 0.0
+    return grad, theta
 
 def test_gradient():
     import time

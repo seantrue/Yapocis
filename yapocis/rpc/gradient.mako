@@ -19,10 +19,10 @@ void gradient(int awidth, int height, __global float* a, int reach, __global flo
 	    	    dy = a[i+j*h]-a[i-j*h];
 		}
 		gr = sqrt(dx*dx + dy*dy);
-		ang = atan(dy/(dx+eps));
-		ang /= 2*pi;
+		ang = atan2pi(dy,dx);
     }
     grad[i] = gr;
-    angle[i] = ang;
+    // TODO: Don't return nans. Seems to do it anyway. 
+    angle[i] = isnan(ang) ? 0.0: ang;
     return;
 }
