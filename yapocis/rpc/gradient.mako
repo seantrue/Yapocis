@@ -1,22 +1,29 @@
-#define ADDRESS(xx,yy) (((yy)*height)+(xx))
-#define Y(i) ((i)/height)
-#define X(i) ((i)-(Y(i)*height))
+/*
+Assume row major storage.
+addr(x,y) = (x*height)+y
+x = addr/height
+y = addr - (addr/height)
+*/
+
+#define ADDRESS(xx,yy) (((xx)*height)+(yy))
+#define X(addr) ((addr)/height)
+#define Y(addr) ((addr)%height)
 
 __kernel
-void gradient(int width, int height, __global float* input,  __global float* grad, __global float *theta )
+void gradient(int width, int height, __global float* input, int reach, __global float* grad, __global float *theta )
 {
     size_t i = get_global_id(0);
     int x = X(i);
     int y = Y(i);
-    float gr = 0.0;
-    float th = 0.0;
-    float v, below, left;
-    if (0 <= x-1  && x+1 < (width-1) && 0 <= y-1 && y < (height-1)) {
-       float dx = input[ADDRESS(x+1,y)] - input[ADDRESS(x-1,y)];
-       float dy = input[ADDRESS(x,y+1)] - input[ADDRESS(x,y-1)];
+    float gr = 0.0f;
+    float th = 0.0f;
+    if (0 <= (x-reach)  && (x+reach) < width && 0 <= (y-reach) && (y+reach) < height) {
+       float dx = input[ADDRESS(x+reach,y)] - input[ADDRESS(x-reach,y)];
+       float dy = input[ADDRESS(x,y+reach)] - input[ADDRESS(x,y-reach)];
        gr = sqrt(dx*dx+dy*dy);
        th = atan2pi(dy, dx);
+       //th = dy < 0 ? -1.0f+th : th;
     }
-    grad[i] = gr;
-    theta[i] = th;
+    grad[i] = isnan(gr) ? 0.0f: gr;
+    theta[i] = isnan(th) ? 0.0f: th;
 }

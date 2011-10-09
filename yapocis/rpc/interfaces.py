@@ -88,7 +88,7 @@ mandelbrot = """
 
 gradient = """
     interface gradient {
-        kernel gradient(widthof int a, heightof int a, in float* a, outlike a, outlike a );
-        alias gradient_res as gradient(widthof int a, heightof int a, resident float* a, resident float *grad, resident float *theta );
+        kernel gradient(widthof int input, heightof int input, in float* input, in int reach,  outlike input, outlike input );
+        alias gradient_res as gradient(widthof int input, heightof int input, resident float* input, in int reach, resident float *grad, resident float *theta );
     };
 """

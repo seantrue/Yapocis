@@ -44,14 +44,14 @@ def test():
     dog = blur-blurmore
     showArray("DOG", dog)
     
-    g,a = gradient(i)
+    g,a = gradient(i,5)
     showArray("Gradient",g)
     showArray("Angle", a)
     sat = np.ones_like(i)
     gimg = joinChannels(*hsi2rgb(a,sat,g))
     showArray("Color gradient with angle", gimg)
     showArrayGrad("Grad angle", image, a)
-    showArrayGrad("Grad vectors", image, a,g)
+    showArrayGrad("Grad vectors", image, a,g*10)
    
 if __name__ == '__main__':
     test()

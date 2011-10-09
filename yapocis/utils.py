@@ -208,7 +208,7 @@ def imread(filename, longest=None):
             resize = True
         if resize:
             img = img.resize((width,height))
-    a = fromimage(img)
+    a = fromimage(img).astype(np.float32)
     if len(a.shape) == 3 and a.shape[2] == 4:
         print "Dropping alpha"
         a = a[:,:,0:3]
@@ -336,8 +336,8 @@ def showArrayGrad(title, image, theta, grad=None):
     for x in range(10,width-10,5):
         for y in range(10,height-10,5):
             i,j  =y, x
-            dx = grad[i,j] * cos[i,j]
-            dy = grad[i,j] * sin[i,j]
+            dx = grad[i,j] * sin[i,j]
+            dy = grad[i,j] * cos[i,j]
             try:
                 x1,y1 = int(x-dx), int(y-dy)
                 x2,y2 = int(x+dx), int(y+dy)
