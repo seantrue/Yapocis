@@ -44,7 +44,7 @@ def test():
     dog = blur-blurmore
     showArray("DOG", dog)
     
-    g,a = gradient(i,5)
+    g,a = gradient(i)
     showArray("Gradient",g)
     showArray("Angle", a)
     sat = np.ones_like(i)

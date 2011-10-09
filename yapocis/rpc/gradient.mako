@@ -1,28 +1,22 @@
-#define eps FLT_EPSILON
-#define pi 3.141592653589793
+#define ADDRESS(xx,yy) (((yy)*height)+(xx))
+#define Y(i) ((i)/height)
+#define X(i) ((i)-(Y(i)*height))
+
 __kernel
-void gradient(int awidth, int height, __global float* a, int reach, __global float* grad, __global float* angle)
+void gradient(int width, int height, __global float* input,  __global float* grad, __global float *theta )
 {
-    size_t i;
-    float gr,ang;
-	float dx, dy;
-    size_t left = (reach*height) + 1;
-    size_t right = awidth - left;
-    int h = height;
-    i = get_global_id(0);
-    gr = 0.0;
-    ang = 0.0;
-    if ((i >= left) &&  (i < right)) {
-		dx = dy = 0.0;
-		for (int j = 1; j <= reach; j++) {
-		    dx = a[i+j]-a[i-j];
-	    	    dy = a[i+j*h]-a[i-j*h];
-		}
-		gr = sqrt(dx*dx + dy*dy);
-		ang = atan2pi(dy,dx);
+    size_t i = get_global_id(0);
+    int x = X(i);
+    int y = Y(i);
+    float gr = 0.0;
+    float th = 0.0;
+    float v, below, left;
+    if (0 <= x-1  && x+1 < (width-1) && 0 <= y-1 && y < (height-1)) {
+       float dx = input[ADDRESS(x+1,y)] - input[ADDRESS(x-1,y)];
+       float dy = input[ADDRESS(x,y+1)] - input[ADDRESS(x,y-1)];
+       gr = sqrt(dx*dx+dy*dy);
+       th = atan2pi(dy, dx);
     }
     grad[i] = gr;
-    // TODO: Don't return nans. Seems to do it anyway. 
-    angle[i] = isnan(ang) ? 0.0: ang;
-    return;
+    theta[i] = th;
 }

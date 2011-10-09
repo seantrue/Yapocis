@@ -12,8 +12,8 @@ from rpc import kernels, interfaces
 program = kernels.loadProgram(interfaces.gradient, engine=kernels.GPU_ENGINE)
 gradientcl = program.gradient
 gradient_res = program.gradient_res
-def gradient(image,reach=1):
-    grad,theta = gradientcl(image, reach)
+def gradient(image):
+    grad,theta = gradientcl(image)
     # TODO: gradientCL should not be returning nans, and is
     theta[np.where(np.isnan(theta))] = 0.0
     return grad, theta
