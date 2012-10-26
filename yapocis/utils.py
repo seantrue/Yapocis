@@ -1,4 +1,8 @@
 from PIL import Image #@UnresolvedImport
+try:
+    import mahotas
+except:
+    mahotas = None
 import numpy as np
 DEBUG=False
 try:
@@ -193,8 +197,7 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
     image = Image.fromstring(mode, shape, strdata)
     return image
 
-def imread(filename, longest=None):
-    img = Image.open(filename)
+def newsize(width, height, longest):
     if longest != None:
         width, height = img.size[0],img.size[1]
         resize = False
@@ -206,8 +209,28 @@ def imread(filename, longest=None):
             width = int(float(width/height)*longest)
             height = longest
             resize = True
+        return resize, width, height
+    return False, width, height
+
+def imread(filename, longest=None):
+    if mahotas:
+        a = mahotas.imread(filename)
+        resize, width, height = newsize(a.shape[0], a.shape[1], longest)
         if resize:
-            img = img.resize((width,height))
+            shape = list(a.shape)
+            a[0] = width
+            a[1] = height
+            a = mahotas.imresize(a, shape)
+        is16bit = a.dtype in (np.int16,np.uint16)
+        a = a.astype(np.float32)
+        if is16bit:
+            a /= 256.0
+        return a
+    img = Image.open(filename)
+    width, height = im.size
+    resize = newsize(width, height, longest)
+    if resize:
+        img = img.resize((width,height))
     a = fromimage(img).astype(np.float32)
     if len(a.shape) == 3 and a.shape[2] == 4:
         print "Dropping alpha"
@@ -443,17 +466,17 @@ def setMargin(a, margin, value=0.0):
     a[-margin:,:] = value
     a[:margin,:] = value
 
-def setFrame(a, margin):
-    setMargin(a, margin)
-    a[0,:] = 1.0
-    a[:,0] = 1.0
-    a[-1,:] = 1.0
-    a[:,-1] = 1.0
+def setFrame(a, width,frame=1.0,margin=0.0):
+    setMargin(a, width,margin)
+    a[0,:] = frame
+    a[:,0] = frame
+    a[-1,:] = frame
+    a[:,-1] = frame
     # TODO: should not include corners
-    a[margin,:] = 1.0
-    a[:,margin] = 1.0
-    a[-margin,:] = 1.0
-    a[:,-margin] = 1.0
+    a[margin,:] = frame
+    a[:,margin] = frame
+    a[-margin,:] = frame
+    a[:,-margin] = frame
     
 
 
