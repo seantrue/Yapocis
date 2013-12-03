@@ -60,18 +60,19 @@ void hsi2rgb(__global float *ha, __global float *sa, __global float *ia, __globa
 
     sector = ((pi2o3 <= H) && (H < pi4o3)); 
     R = sector ? I * (1.0-S) : R;
-    G = sector ? (I * (1.0 + (S*ratio(H,pi2o3,pi)))) : G;
+    G = sector ? (I * (1.0 + (S*ratio(H,pi2o3,pi-H)))) : G;
     B = sector ? 3.0*I - (R+G) :B;
      
-    sector = ((pi4o3 <= H) && (H <= pi2o3));
+    sector = ((pi4o3 <= H) && (H < pi2o3));
     G = sector ? I * (1.0-S) : G;
-    B = sector ? I * (1.0 + (S*ratio(H,pi4o3,pi5o3))) : B;
+    B = sector ? I * (1.0 + (S*ratio(H,pi4o3,pi5o3-H))) : B;
     R = sector ? 3.0*I - (G+B) : R;
 
     R = S < UNSAT ? I : R;
     G = S < UNSAT ? I : G;
     B = S < UNSAT ? I : B;
-
+    
+    R = G = B = 0.0;
     ra[i] = clamp(R, 0.0f, 1.0f-eps);
     ga[i] = clamp(G, 0.0f, 1.0f-eps);
     ba[i] = clamp(B, 0.0f, 1.0f-eps);

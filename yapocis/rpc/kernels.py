@@ -4,8 +4,10 @@ import pyopencl
 from pyopencl import mem_flags as mf #@UnusedImport
 import numpy as np
 
-GPU_ENGINE=0
-CPU_ENGINE=1
+CPU_ENGINE=0
+GPU_ENGINE=1
+engine_ids = {"gpu":GPU_ENGINE,"cpu":CPU_ENGINE}
+engine_names = {GPU_ENGINE:"gpu",CPU_ENGINE:"cpu"}
 
 MEMFLAGS= mf.READ_WRITE|mf.COPY_HOST_PTR
 
@@ -14,6 +16,7 @@ from buffers import BufferManager
 class Engine(object):
     def __init__(self, engine=None,autoflatten=True):
         engine = int(os.environ.get("ENGINE",engine))
+        self.engine_name = engine_names[engine]
         self.ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[engine]])
         self.queue = pyopencl.CommandQueue(self.ctx)
         self.bmgr = BufferManager(context=self.ctx, queue=self.queue)
@@ -35,11 +38,14 @@ class Engine(object):
         return self.bmgr.readBuffer(a)
     def ensure(self, a):
         return self.bmgr.ensureBuffer(a)
-    
 engines = {CPU_ENGINE:Engine(CPU_ENGINE),GPU_ENGINE:Engine(GPU_ENGINE)}
+
 def getEngine(engine):
     """Takes the identifier for an OpenCL engine (CPU_ENGINE, GPU_ENGINE)
     and returns a Engine with buffer management ."""
+    if isinstance(engine, basestring):
+        assert engine.lower() in engine_ids.keys(), "Unknown engine name %s" % engine
+        engine = engine_ids[engine.lower()]
     return engines[engine]
 
 from mako.template import Template
@@ -127,14 +133,15 @@ class Program:
                     hits=self.engine.bmgr.hits,
                     misses=self.engine.bmgr.misses,
                     buffers=len(self.engine.bmgr.buffers),
-                    runtime=self.runtime)
+                    runtime=self.runtime,
+                    engine = self.engine.engine_name)
     def __str__(self):
         self.purge()
-        return "%(interfacename)s calls:%(calls)s hits:%(hits)s misses:%(misses)s buffers:%(buffers)s runtime:%(runtime)s" % self.stats()
+        return "%(interfacename)s engine:%(engine)s calls:%(calls)s hits:%(hits)s misses:%(misses)s buffers:%(buffers)s runtime:%(runtime)s" % self.stats()
 
     
 from interfacecl_parser import getInterfaceCL
-def loadProgram(source, engine=CPU_ENGINE, debug=False, **context):
+def loadProgram(source, engine=GPU_ENGINE, debug=False, **context):
     """
     Primary interface for yapocis.rpc
     Factory returning runnable interface based on a interface specification.
@@ -186,6 +193,8 @@ class Kernel:
         realargs = [None] * len(self.params)
         for iparam, (bufferHint, value) in enumerate(self.argspecs):
             (_, dtype, isbuffer, name) = self.params[iparam]
+            if dtype in ("char","uchar") :
+                dtype = "uint8"
             if dtype:
                 dtype = getattr(np, dtype)
             else:
@@ -273,7 +282,15 @@ class Kernel:
         if not isinstance(self.global_size,(tuple,list)):
             self.global_size = (self.global_size,)
         self.evt = self.kernel(self.queue, self.global_size, self.local_size, *args)
-        self.evt.wait()
+        poll = kwargs.pop("poll", None)
+        if poll:
+            while(True):
+                status = self.evt.get_info(pyopencl.event_info.COMMAND_EXECUTION_STATUS)
+                if status == pyopencl.command_execution_status.COMPLETE:
+                    break
+                time.sleep(poll)
+        else:
+            self.evt.wait()
         #pyopencl.enqueue_barrier(self.queue)
         rval =  self.prepareReturn()
         self.program.runtime += (time.time()-t)
@@ -302,11 +319,11 @@ def test_compiling():
     interfaces = [(convolve, dict(name="convolve", conv=[1,2,3,4,3,2,1])),
                   (median3x3, dict(steps=[9], width=9)),
                   (gradient, {}),
-                  (hsi, {}),
                   (convolves,dict(convs=[("boxone",[1,1,1]),("triangle",[.5,1,.5])])),
                   (mandelbrot,{}),
                   (demo,{}),
                   (xy,{}),
+                  (hsi, {}),
                   ]
     for itest, (interface, context) in enumerate(interfaces):
         program =loadProgram(interface, engine=CPU_ENGINE, debug=True,**context)
@@ -345,6 +362,6 @@ def test_demo():
     
 if __name__ == "__main__":
     test_compiling()
-    test_context()
-    test_demo()
+    #test_context()
+    #test_demo()
     print "All is well"

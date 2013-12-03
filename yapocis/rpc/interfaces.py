@@ -3,7 +3,6 @@ interfaces.py
 Created on Aug 12, 2011
 Copyright (c) 2011, Sean D. True
 '''
-
 # Standard demo, interface spec supports c=sum(a,b)
 demo = """
 interface demo {

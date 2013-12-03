@@ -18,7 +18,7 @@ def median3x3slow(image, iterations=1):
 def median3x3fast(image, iterations=1):
     if iterations == 1:
         # One pass through
-        return median3x3(image)
+        return median3x3cl(image)
     input = image
     output = np.zeros_like(input)
     if iterations == 2:

@@ -273,7 +273,7 @@ def sign(title, img):
     try:
         font = ImageFont.truetype("zapfino.ttf",fheight)
     except:
-        font = ImageFont.truetype("/System/Library/Fonts/AppleGothic.ttf",fheight)
+        font = ImageFont.truetype("/Library/Fonts/AppleGothic.ttf",fheight)
     draw = ImageDraw.Draw(img)
     try:
         pixels = [img.getpixel((x,height-15)) for x in range(10,30)]
@@ -312,7 +312,7 @@ def _showArray(*args):
     except:
         shape = image.size
         img = image
-    font = ImageFont.truetype("/System/Library/Fonts/AppleGothic.ttf",25)
+    font = ImageFont.truetype("/Library/Fonts/AppleGothic.ttf",25)
     #font = ImageFont.truetype("zapfino.ttf",25)
     draw = ImageDraw.Draw(img)
     try:
@@ -336,7 +336,8 @@ def showArray(*args):
    if view is None:
        img.show()
    else:
-       fname = "/tmp/%s.png" % title.strip().replace(" ","").lower()
+       title = title.replace("/","_")
+       fname = "/tmp/%s.png" % title.strip().replace(" ","_").lower()
        img.save(fname)
        view(fname)
 
@@ -438,10 +439,10 @@ def histeq(im,nbr_bins=256):
     return im2.reshape(im.shape), cdf
 
 ALIGNMENT=4
-def alignImage(image):
+def alignImage(image,alignment=ALIGNMENT):
     assert len(image.shape) in (2,3)
     width,height = image.shape[:2]
-    oddw,oddh = width % ALIGNMENT, height % ALIGNMENT
+    oddw,oddh = width % alignment, height % alignment
     if oddw==0 and oddh==0:
         return image.copy()
     evenw = width-oddw if oddw else width

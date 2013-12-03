@@ -175,6 +175,6 @@ if __name__ == "__main__":
     #test_gaussian_1d()
     #test_gaussians()
     #test_kernels()
-    #test_gaussImage()
-    test_zcs()
+    test_gaussImage()
+    #test_zcs()
     print "All is well"
