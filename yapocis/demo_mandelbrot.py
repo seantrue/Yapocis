@@ -22,6 +22,7 @@
 
 import numpy as np
 import time
+from functools import reduce
 
 # You can choose a calculation routine below (calc_fractal), uncomment
 # one of the three lines to test the three variations
@@ -33,7 +34,7 @@ h = 1024
 
 # Use the rpc extension to define and load the kernel as a callable.
 from rpc import kernels, interfaces
-calc_fractal_opencl = kernels.loadProgram(interfaces.mandelbrot,engine=kernels.CPU_ENGINE).mandelbrot
+calc_fractal_opencl = kernels.load_program(interfaces.mandelbrot, engine=kernels.CPU_ENGINE).mandelbrot
 
 
 
@@ -73,13 +74,9 @@ calc_fractal = calc_fractal_opencl
 #calc_fractal = calc_fractal_numpy
 
 if __name__ == '__main__':
-    import Tkinter as tk
-    try:
-        import Image          # PIL
-        import ImageTk        # PIL
-    except:
-        from PIL import Image #@UnresolvedImport
-        from PIL import ImageTk #@UnresolvedImport
+    import tkinter as tk
+    from PIL import Image #@UnresolvedImport
+    from PIL import ImageTk #@UnresolvedImport
 
 
     class Mandelbrot(object):
@@ -104,7 +101,7 @@ if __name__ == '__main__':
             end_main = time.time()
 
             secs = end_main - start_main
-            print("Main took", secs)
+            print(("Main took", secs))
 
             self.mandel = (output.reshape((h,w)) /
                     float(output.max()) * 255.).astype(np.uint8)

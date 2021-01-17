@@ -1,5 +1,5 @@
 % for name, conv in convs:
-<% left = len(conv)/2 %>
+<% left = len(conv)//2 %>
 __kernel
 void ${name}(int width, __global float* a, __global float* ret )
 {

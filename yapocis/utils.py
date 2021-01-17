@@ -1,20 +1,12 @@
-from PIL import Image #@UnresolvedImport
-try:
-    import mahotas
-except:
-    mahotas = None
+from PIL import Image, ImageFont, ImageDraw
 import numpy as np
 DEBUG=False
-try:
-    from preview import view
-except:
-    view = None
 
 
 # bytescale, fromimage, toimage borrowed from scipy.misc
 # Used under the liberal BSD license
 # Returns a byte-scaled image
-def bytescale(data, cmin=None, cmax=None, high=255, low=0):
+def byte_scale(data, cmin=None, cmax=None, high=255, low=0):
     """
     Byte scales an array (image).
 
@@ -41,15 +33,15 @@ def bytescale(data, cmin=None, cmax=None, high=255, low=0):
     >>> img = array([[ 91.06794177,   3.39058326,  84.4221549 ],
                      [ 73.88003259,  80.91433048,   4.88878881],
                      [ 51.53875334,  34.45808177,  27.5873488 ]])
-    >>> bytescale(img)
+    >>> byte_scale(img)
     array([[255,   0, 236],
            [205, 225,   4],
            [140,  90,  70]], dtype=uint8)
-    >>> bytescale(img, high=200, low=100)
+    >>> byte_scale(img, high=200, low=100)
     array([[200, 100, 192],
            [180, 188, 102],
            [155, 135, 128]], dtype=uint8)
-    >>> bytescale(img, cmin=0, cmax=255)
+    >>> byte_scale(img, cmin=0, cmax=255)
     array([[91,  3, 84],
            [74, 81,  5],
            [52, 34, 28]], dtype=uint8)
@@ -64,7 +56,7 @@ def bytescale(data, cmin=None, cmax=None, high=255, low=0):
     bytedata = ((data*1.0-cmin)*scale + 0.4999).astype(np.uint8)
     return bytedata + np.cast[np.uint8](low)
 
-def fromimage(im, flatten=0):
+def from_image(im, flatten=0):
     """
     Return a copy of a PIL image as a numpy array.
 
@@ -91,8 +83,8 @@ def fromimage(im, flatten=0):
 
 _errstr = "Mode is unknown or incompatible with input array shape."
 
-def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
-            mode=None, channel_axis=None):
+def to_image(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
+             mode=None, channel_axis=None):
     """Takes a numpy array and returns a PIL image.  The mode of the
     PIL image depends on the array shape, the pal keyword, and the mode
     keyword.
@@ -113,8 +105,7 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
     if np.iscomplexobj(data):
         raise ValueError("Cannot convert a complex-valued array.")
     shape = list(data.shape)
-    valid = len(shape)==2 or ((len(shape)==3) and \
-                              ((3 in shape) or (4 in shape)))
+    valid = len(shape)==2 or ((len(shape)==3) and ((3 in shape) or (4 in shape)))
     if not valid:
         raise ValueError("'arr' does not have a suitable array shape for any mode.")
     if len(shape) == 2:
@@ -124,14 +115,14 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
             image = Image.fromstring(mode,shape,data32.tostring())
             return image
         if mode in [None, 'L', 'P']:
-            bytedata = bytescale(data,high=high,low=low,cmin=cmin,cmax=cmax)
+            bytedata = byte_scale(data, high=high, low=low, cmin=cmin, cmax=cmax)
             image = Image.fromstring('L',shape,bytedata.tostring())
             if pal is not None:
-                image.putpalette(np.asarray(pal,dtype=uint8).tostring())
+                image.putpalette(np.asarray(pal,dtype=np.uint8).tostring())
                 # Becomes a mode='P' automagically.
             elif mode == 'P':  # default gray-scale
-                pal = arange(0,256,1,dtype=uint8)[:,newaxis] * \
-                      ones((3,),dtype=uint8)[newaxis,:]
+                pal = arange(0,256,1,dtype=np.uint8)[:,newaxis] * \
+                      ones((3,),dtype=np.uint8)[newaxis,:]
                 image.putpalette(np.asarray(pal,dtype=uint8).tostring())
             return image
         if mode == '1':  # high input gives threshold for 1
@@ -168,7 +159,7 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
     if numch not in [3,4]:
         raise ValueError("Channel axis dimension is not valid.")
 
-    bytedata = bytescale(data,high=high,low=low,cmin=cmin,cmax=cmax)
+    bytedata = byte_scale(data, high=high, low=low, cmin=cmin, cmax=cmax)
     if ca == 2:
         strdata = bytedata.tostring()
         shape = (shape[1],shape[0])
@@ -197,7 +188,7 @@ def toimage(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
     image = Image.fromstring(mode, shape, strdata)
     return image
 
-def newsize(width, height, longest):
+def newsize(img, width, height, longest):
     if longest != None:
         width, height = img.size[0],img.size[1]
         resize = False
@@ -213,27 +204,14 @@ def newsize(width, height, longest):
     return False, width, height
 
 def imread(filename, longest=None):
-    if mahotas:
-        a = mahotas.imread(filename)
-        resize, width, height = newsize(a.shape[0], a.shape[1], longest)
-        if resize:
-            shape = list(a.shape)
-            a[0] = width
-            a[1] = height
-            a = mahotas.imresize(a, shape)
-        is16bit = a.dtype in (np.int16,np.uint16)
-        a = a.astype(np.float32)
-        if is16bit:
-            a /= 256.0
-        return a
     img = Image.open(filename)
-    width, height = im.size
-    resize = newsize(width, height, longest)
+    width, height = img.size
+    resize = newsize(img, width, height, longest)
     if resize:
         img = img.resize((width,height))
-    a = fromimage(img).astype(np.float32)
+    a = from_image(img).astype(np.float32)
     if len(a.shape) == 3 and a.shape[2] == 4:
-        print "Dropping alpha"
+        print("Dropping alpha")
         a = a[:,:,0:3]
     return a
 
@@ -246,9 +224,9 @@ class Stage:
         stage = " ".join([str(arg) for arg in args])
         if self.stage:
             t = time.time()
-            print self.stage, "done in", t-self.t
+            print(self.stage, "done in", t-self.t)
         if args:
-            print "Start", stage 
+            print("Start", stage) 
             self.t = time.time()
             self.stage = stage
         else:
@@ -257,10 +235,8 @@ class Stage:
 stage = Stage()
 
 def sign(title, img):
-    from PIL import ImageFont #@UnresolvedImport
-    from PIL import ImageDraw #@UnresolvedImport
     if hasattr(img, "dtype"):
-        img = toimage(img)
+        img = to_image(img)
     shape = img.size
     width, height = shape[0],shape[1]
     if height > 480:
@@ -296,24 +272,26 @@ def sign(title, img):
 
 
 _showArrayCounter = 0
-def _showArray(*args):
+def _show_array(*args):
     global _showArrayCounter
     _showArrayCounter += 1
-    from PIL import ImageFont #@UnresolvedImport
-    from PIL import ImageDraw #@UnresolvedImport
-    image = args[-1]
+    array = args[-1]
     args = args[:-1]
     title = " ".join([str(arg) for arg in args]).strip()
     if not title:
-        title = "showarray %s" % _showArrayCounter 
-    try:
-        shape = image.shape
-        img = toimage(image)
-    except:
-        shape = image.size
-        img = image
+        title = "showarray %s" % _showArrayCounter
+    if array.dtype != np.uint8:
+        array = array.copy()
+        print(title, "*", array.shape, array.min(), array.max())
+        if array.dtype in (np.float32, np.float64, np.float):
+            array -= array.min()
+            array /= array.max()
+            array *= 255.
+            print(title, array.shape, array.min(), array.max())
+            array = array.astype(np.uint8)
+    img = Image.fromarray(array)
+    shape = array.shape
     font = ImageFont.truetype("/Library/Fonts/AppleGothic.ttf",25)
-    #font = ImageFont.truetype("zapfino.ttf",25)
     draw = ImageDraw.Draw(img)
     try:
         pixels = [img.getpixel((x,15)) for x in range(10,30)]
@@ -331,19 +309,13 @@ def _showArray(*args):
     draw.text((10, 10), title, ink,font=font)
     return title,img
 
-def showArray(*args):
-   title,img =  _showArray(*args)
-   if view is None:
-       img.show()
-   else:
-       title = title.replace("/","_")
-       fname = "/tmp/%s.png" % title.strip().replace(" ","_").lower()
-       img.save(fname)
-       view(fname)
+def show_array(*args):
+   title,img =  _show_array(*args)
+   img.show()
 
-def showArrayGrad(title, image, theta, grad=None):
+def show_arraygrad(title, image, theta, grad=None):
     from PIL import ImageDraw #@UnresolvedImport
-    title,img = _showArray(title, image)
+    title,img = _show_array(title, image)
     img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
     width, height = img.size
@@ -353,7 +325,8 @@ def showArrayGrad(title, image, theta, grad=None):
     else:
         grad = grad.copy()
         grad -= grad.min()
-        grad /= grad.max()
+        if grad.max() != 0.0:
+            grad /= grad.max()
         grad *= 10
     cos = np.cos(theta*3.14159)
     sin = np.sin(theta*3.14159)
@@ -369,18 +342,13 @@ def showArrayGrad(title, image, theta, grad=None):
                 # Nans happen
                 continue
             a,b,c = img.getpixel((x,y))
-            grey = (a+b+c)/3
+            grey = (a+b+c)//3
             if grey > 128:
                 color="black"
             else:
                 color = "white"
             draw.line([(x1,y1),(x2,y2)],fill=color)
-    if view is None:
-        img.show()
-    else:
-        fname = "/tmp/%s.png" % title.strip().replace(" ","").lower()
-        img.save(fname)
-        view(fname)
+    img.show()
 
 class Shaper:
     def __init__(self, data):
@@ -439,7 +407,7 @@ def histeq(im,nbr_bins=256):
     return im2.reshape(im.shape), cdf
 
 ALIGNMENT=4
-def alignImage(image,alignment=ALIGNMENT):
+def align_image(image, alignment=ALIGNMENT):
     assert len(image.shape) in (2,3)
     width,height = image.shape[:2]
     oddw,oddh = width % alignment, height % alignment
@@ -461,14 +429,14 @@ def normalize(a):
     return a
 
 
-def setMargin(a, margin, value=0.0):
+def set_margin(a, margin, value=0.0):
     a[:,-margin:] = value
     a[:,:margin] = value
     a[-margin:,:] = value
     a[:margin,:] = value
 
-def setFrame(a, width,frame=1.0,margin=0.0):
-    setMargin(a, width,margin)
+def set_frame(a, width, frame=1.0, margin=0.0):
+    set_margin(a, width, margin)
     a[0,:] = frame
     a[:,0] = frame
     a[-1,:] = frame

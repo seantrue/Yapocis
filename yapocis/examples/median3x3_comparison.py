@@ -32,7 +32,7 @@ for i in range(0,SAMPLES):
     output3 = median.median3x3fast(img,ITERATIONS)
     yapocisfast_delta = time.time() - t
 
-    print width, numpy_delta, yapocis_delta, yapocisfast_delta
+    print(width, numpy_delta, yapocis_delta, yapocisfast_delta)
     sizes.append(width)
     areas.append(width*width)
     numpy_deltas.append(numpy_delta)

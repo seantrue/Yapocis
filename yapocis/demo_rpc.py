@@ -5,53 +5,53 @@ Created on Jul 21, 2011
 '''
 
 import numpy as np
-from utils import imread, toimage
-from utils import showArray, showArrayGrad
+from utils import imread, to_image
+from utils import show_array, show_arraygrad
+from yapocis.median import median3x3
+from yapocis.gradient import gradient
+from yapocis.hsi import rgb2hsi, hsi2rgb, join_channels, split_channels
 
 
 def test():
-    from median import median3x3
-    from gradient import gradient
-    from hsi import rgb2hsi, hsi2rgb, joinChannels, splitChannels
-    
+
     # Create a noisy image with an embedded white square
     image = np.zeros((201,199),dtype=np.float32)
     width,height = image.shape
-    x,y = width/2, height/2
+    x,y = width//2, height//2
     offset = 10
     image[x-offset:x+offset,y-offset:y+offset] = 2
     image += np.random.random_sample(image.shape)
     
     filtered = median3x3(image, 100)
 
-    showArray("Noisy",image)
-    showArray("Filtered",filtered)
+    show_array("Noisy", image)
+    show_array("Filtered", filtered)
     
     image = np.float32(imread("test.jpg"))
     image /= 256.
 
-    showArray("Test HSI",image)
-    r,g,b = splitChannels(image)
+    show_array("Test HSI", image)
+    r,g,b = split_channels(image)
     h,s,i = rgb2hsi(r,g,b)
-    showArray("I",i)
-    showArray("S",s)
-    showArray("H",h)
+    show_array("I", i)
+    show_array("S", s)
+    show_array("H", h)
 
-    from gaussian import gaussImage
-    blur = gaussImage(i, 3)
-    showArray("Blur", blur)
-    blurmore = gaussImage(i,4)
+    from gaussian import gauss_image
+    blur = gauss_image(i, 3)
+    show_array("Blur", blur)
+    blurmore = gauss_image(i, 4)
     dog = blur-blurmore
-    showArray("DOG", dog)
+    show_array("DOG", dog)
     
     g,a = gradient(i,5)
-    showArray("Gradient",g)
-    showArray("Angle", a)
+    show_array("Gradient", g)
+    show_array("Angle", a)
     sat = np.ones_like(i)
-    gimg = joinChannels(*hsi2rgb(a,sat,g))
-    showArray("Color gradient with angle", gimg)
-    showArrayGrad("Grad angle", image, a)
-    showArrayGrad("Grad vectors", image, a,g*10)
+    gimg = join_channels(*hsi2rgb(a, sat, g))
+    show_array("Color gradient with angle", gimg)
+    show_arraygrad("Grad angle", image, a)
+    show_arraygrad("Grad vectors", image, a, g * 10)
    
 if __name__ == '__main__':
     test()

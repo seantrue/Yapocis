@@ -38,5 +38,5 @@ a_plus_b = numpy.empty_like(a)
 cl.enqueue_copy(queue, a_plus_b, dest_buf)
 
 # But the answer comes back fast, and good.
-print(la.norm(a_plus_b - (a+b)), la.norm(a_plus_b))
-print "Elapsed:", time.time() - t
+print((la.norm(a_plus_b - (a+b)), la.norm(a_plus_b)))
+print("Elapsed:", time.time() - t)

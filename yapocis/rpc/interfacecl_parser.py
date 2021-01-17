@@ -5,7 +5,7 @@
 # Inspired by an IDL parser by Paul McGuire, shipped as a demo with pyparser
 #
 
-from pyparsing import Literal, CaselessLiteral, Word, Upcase, OneOrMore, ZeroOrMore, \
+from pyparsing import Literal, CaselessLiteral, Word, upcaseTokens, OneOrMore, ZeroOrMore, \
         Forward, NotAny, delimitedList, oneOf, Group, Optional, Combine, alphas, nums, restOfLine, cStyleComment, \
         alphanums, printables, empty, quotedString, ParseException, ParseResults, Keyword
 import pprint
@@ -83,7 +83,7 @@ class InterfaceCL:
         self.program = None
     def kernels(self):
         "Returns a list of kernel names"
-        return self.kerneldefs_.keys()
+        return list(self.kerneldefs_.keys())
     def kernelparams(self, kernel):
         "Returns the parameter specifications for a kernel"
         return self.kerneldefs_.get(kernel, None)
@@ -166,63 +166,9 @@ def getInterfaceCL(s):
             assert tokens.pop(0) == ";"
             kerneldefs[kernelname] =  params
         return InterfaceCL(interfacename, kerneldefs, kernelaliases)
-    except ParseException, err:
-        print err.line
-        print " "*(err.column-1) + "^"
-        print err
+    except ParseException as err:
+        print(err.line)
+        print(" "*(err.column-1) + "^")
+        print(err)
         raise 
 
-def test_getinterfacecl():
-    interface = getInterfaceCL(
-        """
-        interface boundedmedian {
-             kernel boundedmedian(sizeof int input, in float32 *input, in int32 *zcs, outlike int16 input, out short *trace);
-             alias bm as boundedmedian(in int32 offset, resident float32 *input, in int32 *zcs, resident float *input, out int16 *trace);
-          };
-        """
-        )
-    print "Interface:", interface.interfacename
-    for kernel in interface.kernels():
-        print "Kernel: %s alias for %s" % (kernel, interface.kernelalias(kernel))
-        symbols = {}
-        iparam = 0
-        for param in interface.kernelparams(kernel):
-            assert len(param) == 4
-            print "Param:", param,
-            direction, dtype, isbuffer, name = param
-            assert direction in ("in","out","inout","outlike","resident","sizeof","widthof","heightof")
-            if direction == "outlike":
-                assert name in symbols
-                iparam, olparam = symbols[name]
-                dtype,isbuffer = olparam[1],olparam[2]
-                print "->", olparam,
-                assert isbuffer
-            else:
-                symbols[name] = iparam,param
-                iparam += 1
-            assert isbuffer in ("*","")
-            assert dtype in ("int16", "int32", "float32","uint16","uint32","complex64","int","float","short")
-            togpu = direction in ("in","inout")
-            fromgpu = direction in ("out","inout","outlike")
-            if isbuffer:
-                if direction == "resident":
-                    print "Buffer is resident on GPU.",
-                elif direction == "outlike":
-                    print "Allocate a buffer like %(name)s (position=%(iparam)s). (%(olparam)s)" % locals(),
-                elif direction in  ("sizeof","heightof","widthof"):
-                    print "Pass in %s of %s" % (direction,name),
-                else:
-                    print "Coerce %(name)s to numpy.%(dtype)s. " % locals(), 
-                    print "Allocate a buffer for %(name)s. " % locals(),
-                if togpu:
-                    print "Copy to GPU. ",
-                if fromgpu:
-                    print "Copy back from GPU.",
-            else:
-                assert not fromgpu
-                print "Use as parameter.",
-            print
-        print
-    
-if __name__ == "__main__":
-    test_getinterfacecl()

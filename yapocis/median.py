@@ -4,10 +4,10 @@ Created on Jul 22, 2011
 '''
 
 import numpy as np
-from rpc import kernels, interfaces
+from yapocis.rpc import kernels, interfaces
 
 # Provision this program with just one median filter, fixed length of 9
-program = kernels.loadProgram(interfaces.median3x3, width=9, steps=[9])
+program = kernels.load_program(interfaces.median3x3, width=9, steps=[9])
 median3x3cl = program.median3x3
 def median3x3slow(image, iterations=1):
     while iterations > 0:
@@ -44,19 +44,3 @@ def median3x3fast(image, iterations=1):
     return output.copy()
 
 median3x3=median3x3fast
-
-def test_median3():
-    a1 = np.random.sample((500,500)).astype(np.float32)
-    a2 = a1.copy()
-    from utils import stage
-    stage("slow")
-    b1 = median3x3slow(a1,500)
-    stage()
-    stage("fast")
-    b2 = median3x3fast(a2,500)
-    stage()
-    error = np.sum(np.abs(b1.flatten()-b2.flatten()))
-    assert error == 0.0
-    print "All is well"
-if __name__ == "__main__":
-    test_median3()
