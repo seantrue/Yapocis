@@ -1,4 +1,4 @@
-from rpc import kernels, interfaces
+from yapocis.rpc import kernels, interfaces
 import numpy
 import numpy.linalg as la
 import time

@@ -1,7 +1,7 @@
 import numpy as np
 
 from yapocis.rpc.buffers import BufferManager, CPU_ENGINE
-from yapocis.rpc.interfacecl_parser import getInterfaceCL
+from yapocis.rpc.interfacecl_parser import get_interface
 from yapocis.rpc.kernels import load_program, get_engine, GPU_ENGINE, CPU_ENGINE, directories
 from yapocis.rpc.interfaces import convolve, convolves, median3x3, gradient, xy, hsi
 from yapocis.rpc.interfaces import mandelbrot, demo
@@ -46,7 +46,7 @@ def test_buffers():
 
 
 def test_getinterfacecl():
-    interface = getInterfaceCL(
+    interface = get_interface(
         """
         interface boundedmedian {
              kernel boundedmedian(sizeof int input, in float32 *input, in int32 *zcs, outlike int16 input, out short *trace);
@@ -54,12 +54,12 @@ def test_getinterfacecl():
           };
         """
     )
-    print("Interface:", interface.interfacename)
+    print("Interface:", interface.interface_name)
     for kernel in interface.kernels():
-        print("Kernel: %s alias for %s" % (kernel, interface.kernelalias(kernel)))
+        print("Kernel: %s alias for %s" % (kernel, interface.kernel_alias(kernel)))
         symbols = {}
         iparam = 0
-        for param in interface.kernelparams(kernel):
+        for param in interface.kernel_params(kernel):
             assert len(param) == 4
             print("Param:", param, end=' ')
             direction, dtype, isbuffer, name = param
@@ -111,11 +111,11 @@ def test_compiling():
                   ]
     for itest, (interface, context) in enumerate(interfaces):
         program = load_program(interface, engine=CPU_ENGINE, debug=True, **context)
-        print("Interface", program.interface.interfacename)
+        print("Interface", program.interface.interface_name)
         for kernel in program.interface.kernels():
             print("Kernel", kernel)
-            print("Params", program.interface.kernelparams(kernel))
-            print("OpenCL entry", getattr(program.interface.program, program.interface.kernelalias(kernel)))
+            print("Params", program.interface.kernel_params(kernel))
+            print("OpenCL entry", getattr(program.interface.program, program.interface.kernel_alias(kernel)))
             print("Callable", getattr(program, kernel))
         print()
 

@@ -4,6 +4,8 @@ from weakref import WeakValueDictionary as Weak
 import pyopencl
 from pyopencl import mem_flags as mf
 
+from yapocis.yapocis_types import *
+
 GPU_ENGINE = 0
 CPU_ENGINE = 1
 
@@ -15,13 +17,14 @@ CPU_ENGINE = 1
 # in favor of better sugar.
 
 
-class BufferManager(object):
+class BufferManager:
     MEMFLAGS = mf.READ_WRITE | mf.COPY_HOST_PTR
     READ = 0
     WRITE = 1
     DEBUG = True
 
-    def __init__(self, engine=None, context=None, queue=None):
+    def __init__(self, engine: EngineID = None, context: Optional[pyopencl.Context] = None,
+                 queue: Optional[pyopencl.CommandQueue] = None):
         if engine is None and context is None:
             # Look in environment for engine selection
             engine = os.environ.get("ENGINE", None)
@@ -48,22 +51,20 @@ class BufferManager(object):
                 del self.buffers[buffer_id]
                 self.purged += 1
 
-    def make_buffer(self, a):
-        #        print "makeBuffer", id(a), a.shape, a.size, id(a.data)
+    def make_buffer(self, a:Array) -> pyopencl.Buffer:
         buf = pyopencl.Buffer(self.ctx, self.MEMFLAGS, hostbuf=a)
         buffer_id = id(a)
         self.arrays[buffer_id] = a
         self.buffers[buffer_id] = buf
         return buf
 
-    def ensure_buffer(self, a):
+    def ensure_buffer(self, a:Array) -> pyopencl.Buffer:
         buf = self.find_buffer(a, self.WRITE)
         if buf is None:
             buf = self.make_buffer(a)
         return buf
 
-    def read_buffer(self, a):
-        #        print "readBuffer", id(a)
+    def read_buffer(self, a:Array) -> pyopencl.Buffer:
         buf = self.find_buffer(a, self.READ)
         shape = a.shape
         strides = a.strides
@@ -75,8 +76,7 @@ class BufferManager(object):
         a.strides = strides
         return buf
 
-    def write_buffer(self, a):
-        #        print "writeBuffer", id(a)
+    def write_buffer(self, a:Array) -> pyopencl.Buffer:
         buf = self.ensure_buffer(a)
         shape = a.shape
         strides = a.strides
@@ -88,7 +88,7 @@ class BufferManager(object):
         # pyopencl.enqueue_barrier(self.queue)
         return buf
 
-    def find_buffer(self, a, op):
+    def find_buffer(self, a:Array, op:int) -> Optional[pyopencl.Buffer]:
         "Find an appropriate buffer. Tricky."
         assert op in (self.READ, self.WRITE)
         self.purge_buffers()

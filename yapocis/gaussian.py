@@ -6,14 +6,14 @@ from yapocis.gradient import gradient
 
 from yapocis.operators import sub_res
 from yapocis.zcs import zcs, zcs_res
+from yapocis.yapocis_types import *
 
-
-def are_close(a, b):
+def are_close(a:Array, b:Array) -> bool:
     eps = .00001
     return abs(a - b) <= eps
 
 
-def gauss_1d(sigma=1., dt=1., limit=.01, normalize=True):
+def gauss_1d(sigma:float=1., dt:float=1., limit:float=.01, normalize:bool=True) -> Array:
     """
     Get a Gaussian distribution that sums to 1 along 1 dimension, 
     quantized by discrete steps.

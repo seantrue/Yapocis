@@ -1,5 +1,4 @@
 import os, time
-
 import pyopencl
 from pyopencl import mem_flags as mf  # @UnusedImport
 import numpy as np
@@ -11,11 +10,13 @@ engine_names = {GPU_ENGINE: "gpu", CPU_ENGINE: "cpu"}
 
 MEMFLAGS = mf.READ_WRITE | mf.COPY_HOST_PTR
 
-from .buffers import BufferManager
+from yapocis.rpc.buffers import BufferManager
+from yapocis.rpc.interfacecl_parser import get_interface, InterfaceCL
+from yapocis.yapocis_types import *
 
 
-class Engine(object):
-    def __init__(self, engine=None, autoflatten=True):
+class Engine:
+    def __init__(self, engine: Optional[int] = None, autoflatten: bool = True):
         engine = int(os.environ.get("ENGINE", engine))
         self.engine_name = engine_names[engine]
         self.ctx = pyopencl.Context([pyopencl.get_platforms()[0].get_devices()[engine]])
@@ -26,7 +27,7 @@ class Engine(object):
         self.runtime = 0.0
         self.autoflatten = autoflatten
 
-    def build(self, source):
+    def build(self, source: str) -> pyopencl.Program:
         binary = pyopencl.Program(self.ctx, source)
         program = binary.build(options=["-w"])
         return program
@@ -34,21 +35,21 @@ class Engine(object):
     def purge(self):
         self.bmgr.purge_buffers()
 
-    def write(self, a):
+    def write(self, a: Array) -> pyopencl.Buffer:
         assert hasattr(a, "dtype")
         return self.bmgr.write_buffer(a)
 
-    def read(self, a):
+    def read(self, a: Array) -> Optional[pyopencl.Buffer]:
         return self.bmgr.read_buffer(a)
 
-    def ensure(self, a):
+    def ensure(self, a: Array) -> pyopencl.Buffer:
         return self.bmgr.ensure_buffer(a)
 
 
 engines = {CPU_ENGINE: Engine(CPU_ENGINE), GPU_ENGINE: Engine(GPU_ENGINE)}
 
 
-def get_engine(engine):
+def get_engine(engine: EngineID) -> Engine:
     """Takes the identifier for an OpenCL engine (CPU_ENGINE, GPU_ENGINE)
     and returns a Engine with buffer management ."""
     if isinstance(engine, str):
@@ -61,7 +62,7 @@ from mako.template import Template
 from mako.lookup import TemplateLookup
 
 
-def find_file(dirs, subdirs, filename):
+def find_file(dirs: List[str], subdirs: List[str], filename: str) -> Optional[str]:
     for d in dirs:
         for sd in subdirs:
             pth = os.path.join(d, sd, filename)
@@ -73,7 +74,7 @@ def find_file(dirs, subdirs, filename):
 directories = [".", "rpc", "interfaces"]
 
 
-def render_program(filename, **context):
+def render_program(filename: str, **context: Context) -> str:
     """
     Takes the basename of a mako template file, and uses context to generate an OpenCL program
     """
@@ -89,7 +90,7 @@ def render_program(filename, **context):
     return str(t.render(**context))
 
 
-def render_interface(source, **context):
+def render_interface(source: str, **context: Context) -> str:
     """
     Takes the source for a mako definition of a yapocis.rpc interface and generates
     a parsable definition. Useful when the template can generate multiple parameterized
@@ -106,8 +107,8 @@ class Program:
     Manages buffers on the OpenCL device to prevent over-allocation.
     """
 
-    def __init__(self, interface, engine, debug=False, **context):
-        source = render_program(interface.interfacename, **context)
+    def __init__(self, interface: InterfaceCL, engine: EngineID, debug: bool = False, **context: Context):
+        source = render_program(interface.interface_name, **context)
         self.source = source
         if debug:
             print("Source")
@@ -126,10 +127,10 @@ class Program:
         self.calls = 0
         self.runtime = 0.0
         for kernel in interface.kernels():
-            alias = interface.kernelalias(kernel)
-            self.callable[kernel] = Kernel(self, getattr(program, alias), interface.kernelparams(kernel), self.engine)
+            alias = interface.kernel_alias(kernel)
+            self.callable[kernel] = Kernel(self, getattr(program, alias), interface.kernel_params(kernel), self.engine)
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: str) -> Callable:
         "Any unbound attribute is checked to see if it is a callable"
         if not attr in self.callable:
             print("Kernel %s not found, %s available" % (attr, list(self.callable.keys())))
@@ -139,20 +140,17 @@ class Program:
     def purge(self):
         self.engine.purge()
 
-    def findBuffer(self, *args):
-        return self.engine.findBuffer(*args)
+    def read(self, a: Array):
+        return self.engine.read(a)
 
-    def read(self, *args):
-        return self.engine.read(*args)
+    def write(self, a: Array):
+        return self.engine.write(a)
 
-    def write(self, *args):
-        return self.engine.write(*args)
-
-    def ensure(self, *args):
-        return self.engine.ensure(*args)
+    def ensure(self, a: Array):
+        return self.engine.ensure(a)
 
     def stats(self):
-        return dict(interfacename=self.interface.interfacename,
+        return dict(interfacename=self.interface.interface_name,
                     calls=self.calls,
                     hits=self.engine.bmgr.hits,
                     misses=self.engine.bmgr.misses,
@@ -165,16 +163,13 @@ class Program:
         return "%(interfacename)s engine:%(engine)s calls:%(calls)s hits:%(hits)s misses:%(misses)s buffers:%(buffers)s runtime:%(runtime)s" % self.stats()
 
 
-from .interfacecl_parser import getInterfaceCL
-
-
-def load_program(source, engine=GPU_ENGINE, debug=False, **context):
+def load_program(source: str, engine: EngineID = GPU_ENGINE, debug: bool = False, **context: Context):
     """
     Primary interface for yapocis.rpc
     Factory returning runnable interface based on a interface specification.
     """
     source = render_interface(source, **context)
-    interface = getInterfaceCL(source)
+    interface = get_interface(source)
     interface.source = source
     if debug: print("Interface", interface)
     return Program(interface, engine, debug=debug, **context)
@@ -186,27 +181,25 @@ class Kernel:
     Provide a callable interface to an OpenCL kernel function.
     """
 
-    def __init__(self, program, kernel, params, engine):
+    def __init__(self, program:pyopencl.Program, kernel:Callable, params:List[Tuple], engine:Engine):
         self.program = program
         self.kernel = kernel
         self.params = params
         self.ctx = engine.ctx
         self.queue = engine.queue
         self.autoflatten = engine.autoflatten
-        self.mapArguments()
+        self.map_arguments()
 
-    #        print self.argspecs
-    #        print self.posbyname
-    def read(self, *args):
-        return self.program.read(*args)
+    def read(self, a:Array):
+        return self.program.read(a)
 
-    def write(self, *args):
-        return self.program.write(*args)
+    def write(self, a:Array):
+        return self.program.write(a)
 
-    def ensure(self, *args):
-        return self.program.ensure(*args)
+    def ensure(self, a:Array):
+        return self.program.ensure(a)
 
-    def mapArguments(self):
+    def map_arguments(self):
         argspecs = [None] * len(self.params)
         posbyname = {}
         iarg = 0
@@ -220,7 +213,7 @@ class Kernel:
         self.argspecs = argspecs
         self.posbyname = posbyname
 
-    def prepare_args(self, args):
+    def prepare_arguments(self, args:List[Any]):
         "Takes the actual arguments and maps to the arguments needed by the kernel"
         assert len(self.posbyname) == len(args), "Expected %s arguments, got %s" % (len(self.posbyname), len(args))
         self.returns = []
@@ -315,13 +308,13 @@ class Kernel:
 
     handle_resident = handle_out
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args:List[Any], **kwargs):
         "Call a kernel, prepare arguments, and track performance"
         self.program.calls += 1
         t = time.time()
         self.global_size = kwargs.pop("global_size", None)
         self.local_size = kwargs.pop("local_size", None)
-        args = self.prepare_args(args)
+        args = self.prepare_arguments(args)
         if not isinstance(self.global_size, (tuple, list)):
             self.global_size = (self.global_size,)
         self.evt = self.kernel(self.queue, self.global_size, self.local_size, *args)
@@ -335,11 +328,11 @@ class Kernel:
         else:
             self.evt.wait()
         # pyopencl.enqueue_barrier(self.queue)
-        rval = self.prepareReturn()
+        rval = self.prepare_return()
         self.program.runtime += (time.time() - t)
         return rval
 
-    def prepareReturn(self):
+    def prepare_return(self) ->Union[Any, Tuple[Any], None]:
         "Takes the return value buffers (out and outlike) and prepares proper Numpy arrays"
         rvals = []
         for arg, buf in self.returns:

@@ -1,7 +1,7 @@
 import numpy as np
 import time
 from scipy.ndimage.filters import median_filter
-import median
+from yapocis import median
 def median3x3(input, iterations=1):
     for i in range(iterations):
         input = median_filter(input,3)

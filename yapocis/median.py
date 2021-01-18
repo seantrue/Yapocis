@@ -5,17 +5,18 @@ Created on Jul 22, 2011
 
 import numpy as np
 from yapocis.rpc import kernels, interfaces
-
+from yapocis.yapocis_types import *
 # Provision this program with just one median filter, fixed length of 9
 program = kernels.load_program(interfaces.median3x3, width=9, steps=[9])
 median3x3cl = program.median3x3
-def median3x3slow(image, iterations=1):
+
+def median3x3slow(image:Array, iterations:int=1) -> Array:
     while iterations > 0:
         image = median3x3cl(image)
         iterations -= 1
     return image.copy()
 
-def median3x3fast(image, iterations=1):
+def median3x3fast(image:Array, iterations:int=1) -> Array:
     if iterations == 1:
         # One pass through
         return median3x3cl(image)

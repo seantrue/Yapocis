@@ -5,8 +5,8 @@ Created on Jul 21, 2011
 '''
 
 import numpy as np
-from utils import imread, to_image
-from utils import show_array, show_arraygrad
+from yapocis.utils import imread, to_image
+from yapocis.utils import show_array, show_arraygrad
 from yapocis.median import median3x3
 from yapocis.gradient import gradient
 from yapocis.hsi import rgb2hsi, hsi2rgb, join_channels, split_channels

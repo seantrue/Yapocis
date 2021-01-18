@@ -1,12 +1,15 @@
 from PIL import Image, ImageFont, ImageDraw
 import numpy as np
-DEBUG=False
+from yapocis.yapocis_types import *
+
+DEBUG = False
 
 
 # bytescale, fromimage, toimage borrowed from scipy.misc
 # Used under the liberal BSD license
 # Returns a byte-scaled image
-def byte_scale(data, cmin=None, cmax=None, high=255, low=0):
+def byte_scale(data: Array, cmin: Optional[float] = None, cmax: Optional[float] = None, high: int = 255,
+               low: int = 0) -> Array:
     """
     Byte scales an array (image).
 
@@ -50,13 +53,14 @@ def byte_scale(data, cmin=None, cmax=None, high=255, low=0):
     if data.dtype == np.uint8:
         return data
     high = high - low
-    if cmin is None: cmin = data.min()
-    if cmax is None: cmax = data.max()
-    scale = high *1.0 / (cmax-cmin or 1)
-    bytedata = ((data*1.0-cmin)*scale + 0.4999).astype(np.uint8)
+    cmin = data.min() if cmin is None else cmin
+    cmax = data.max() if cmax is None else cmax
+    scale = high * 1.0 / (cmax - cmin or 1)
+    bytedata = ((data * 1.0 - cmin) * scale + 0.4999).astype(np.uint8)
     return bytedata + np.cast[np.uint8](low)
 
-def from_image(im, flatten=0):
+
+def from_image(im: PILImage, flatten: bool = False) -> Array:
     """
     Return a copy of a PIL image as a numpy array.
 
@@ -81,10 +85,13 @@ def from_image(im, flatten=0):
         im = im.convert('F')
     return np.array(im)
 
+
 _errstr = "Mode is unknown or incompatible with input array shape."
 
-def to_image(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
-             mode=None, channel_axis=None):
+
+def to_image(arr: Array, high: int = 255, low: int = 0, cmin: Optional[float] = None, cmax: Optional[float] = None,
+             pal: Optional[Array] = None, mode: Optional[str] = None,
+             channel_axis: Optional[int] = None, newaxis: Optional[int] = None) -> PILImage:
     """Takes a numpy array and returns a PIL image.  The mode of the
     PIL image depends on the array shape, the pal keyword, and the mode
     keyword.
@@ -105,38 +112,38 @@ def to_image(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
     if np.iscomplexobj(data):
         raise ValueError("Cannot convert a complex-valued array.")
     shape = list(data.shape)
-    valid = len(shape)==2 or ((len(shape)==3) and ((3 in shape) or (4 in shape)))
+    valid = len(shape) == 2 or ((len(shape) == 3) and ((3 in shape) or (4 in shape)))
     if not valid:
         raise ValueError("'arr' does not have a suitable array shape for any mode.")
     if len(shape) == 2:
-        shape = (shape[1],shape[0]) # columns show up first
+        shape = (shape[1], shape[0])  # columns show up first
         if mode == 'F':
             data32 = data.astype(np.float32)
-            image = Image.fromstring(mode,shape,data32.tostring())
+            image = Image.fromstring(mode, shape, data32.tostring())
             return image
         if mode in [None, 'L', 'P']:
             bytedata = byte_scale(data, high=high, low=low, cmin=cmin, cmax=cmax)
-            image = Image.fromstring('L',shape,bytedata.tostring())
+            image = Image.fromstring('L', shape, bytedata.tostring())
             if pal is not None:
-                image.putpalette(np.asarray(pal,dtype=np.uint8).tostring())
+                image.putpalette(np.asarray(pal, dtype=np.uint8).tostring())
                 # Becomes a mode='P' automagically.
             elif mode == 'P':  # default gray-scale
-                pal = arange(0,256,1,dtype=np.uint8)[:,newaxis] * \
-                      ones((3,),dtype=np.uint8)[newaxis,:]
-                image.putpalette(np.asarray(pal,dtype=uint8).tostring())
+                pal = np.arange(0, 256, 1, dtype=np.uint8)[:, newaxis] * \
+                      np.ones((3,), dtype=np.uint8)[newaxis, :]
+                image.putpalette(np.asarray(pal, dtype=np.uint8).tostring())
             return image
         if mode == '1':  # high input gives threshold for 1
             bytedata = (data > high)
-            image = Image.fromstring('1',shape,bytedata.tostring())
+            image = Image.fromstring('1', shape, bytedata.tostring())
             return image
         if cmin is None:
-            cmin = amin(ravel(data))
+            cmin = np.amin(np.ravel(data))
         if cmax is None:
-            cmax = amax(ravel(data))
-        data = (data*1.0 - cmin)*(high-low)/(cmax-cmin) + low
+            cmax = np.amax(np.ravel(data))
+        data = (data * 1.0 - cmin) * (high - low) / (cmax - cmin) + low
         if mode == 'I':
             data32 = data.astype(np.uint32)
-            image = Image.fromstring(mode,shape,data32.tostring())
+            image = Image.fromstring(mode, shape, data32.tostring())
         else:
             raise ValueError(_errstr)
         return image
@@ -156,25 +163,26 @@ def to_image(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
         ca = channel_axis
 
     numch = shape[ca]
-    if numch not in [3,4]:
+    if numch not in [3, 4]:
         raise ValueError("Channel axis dimension is not valid.")
 
     bytedata = byte_scale(data, high=high, low=low, cmin=cmin, cmax=cmax)
     if ca == 2:
         strdata = bytedata.tostring()
-        shape = (shape[1],shape[0])
+        shape = (shape[1], shape[0])
     elif ca == 1:
-        strdata = transpose(bytedata,(0,2,1)).tostring()
-        shape = (shape[2],shape[0])
+        strdata = np.transpose(bytedata, (0, 2, 1)).tostring()
+        shape = (shape[2], shape[0])
     elif ca == 0:
-        strdata = transpose(bytedata,(1,2,0)).tostring()
-        shape = (shape[2],shape[1])
+        strdata = np.transpose(bytedata, (1, 2, 0)).tostring()
+        shape = (shape[2], shape[1])
     if mode is None:
-        if numch == 3: mode = 'RGB'
-        else: mode = 'RGBA'
+        if numch == 3:
+            mode = 'RGB'
+        else:
+            mode = 'RGBA'
 
-
-    if mode not in ['RGB','RGBA','YCbCr','CMYK']:
+    if mode not in ['RGB', 'RGBA', 'YCbCr', 'CMYK']:
         raise ValueError(_errstr)
 
     if mode in ['RGB', 'YCbCr']:
@@ -188,73 +196,81 @@ def to_image(arr, high=255, low=0, cmin=None, cmax=None, pal=None,
     image = Image.fromstring(mode, shape, strdata)
     return image
 
-def newsize(img, width, height, longest):
+
+def newsize(img: PILImage, width: int, height: int, longest: int) -> Tuple[bool, int, int]:
     if longest != None:
-        width, height = img.size[0],img.size[1]
+        width, height = img.size[0], img.size[1]
         resize = False
         if width > height and width > longest:
-            height = int(float(height/width)*longest)
+            height = int(float(height / width) * longest)
             width = longest
             resize = True
         elif height >= width and height > longest:
-            width = int(float(width/height)*longest)
+            width = int(float(width / height) * longest)
             height = longest
             resize = True
         return resize, width, height
     return False, width, height
 
-def imread(filename, longest=None):
+
+def imread(filename: str, longest: Optional[int] = None) -> Array:
     img = Image.open(filename)
     width, height = img.size
     resize = newsize(img, width, height, longest)
     if resize:
-        img = img.resize((width,height))
+        img = img.resize((width, height))
     a = from_image(img).astype(np.float32)
     if len(a.shape) == 3 and a.shape[2] == 4:
         print("Dropping alpha")
-        a = a[:,:,0:3]
+        a = a[:, :, 0:3]
     return a
 
+
 import time
+
+
 class Stage:
     def __init__(self):
         self.t = None
         self.stage = None
+
     def __call__(self, *args):
         stage = " ".join([str(arg) for arg in args])
         if self.stage:
             t = time.time()
-            print(self.stage, "done in", t-self.t)
+            print(self.stage, "done in", t - self.t)
         if args:
-            print("Start", stage) 
+            print("Start", stage)
             self.t = time.time()
             self.stage = stage
         else:
             self.t = self.stage = None
 
+
 stage = Stage()
 
-def sign(title, img):
+
+def sign(title: str, img: Union[Array, PILImage]) -> Image:
     if hasattr(img, "dtype"):
         img = to_image(img)
     shape = img.size
-    width, height = shape[0],shape[1]
+    width, height = shape[0], shape[1]
     if height > 480:
-        fheight = height/30
-        fheight = 5*(fheight/5)
+        fheight = height / 30
+        fheight = 5 * (fheight / 5)
         if fheight % 5:
             fheight += 5
     else:
         fheight = 16
     try:
-        font = ImageFont.truetype("zapfino.ttf",fheight)
+        font = ImageFont.truetype("zapfino.ttf", fheight)
     except:
-        font = ImageFont.truetype("/Library/Fonts/AppleGothic.ttf",fheight)
+        font = ImageFont.truetype("/Library/Fonts/AppleGothic.ttf", fheight)
     draw = ImageDraw.Draw(img)
     try:
-        pixels = [img.getpixel((x,height-15)) for x in range(10,30)]
+        pixels = [img.getpixel((x, height - 15)) for x in range(10, 30)]
         pixels = np.array(pixels)
-        darkness = pixels.sum()/pixels.size
+        darkness = pixels.sum() / pixels.size
         if darkness < 128:
             ink = 255
         else:
@@ -262,16 +278,18 @@ def sign(title, img):
     except:
         ink = 0
     if len(shape) > 2:
-        ink = tuple(ink,ink,ink)
+        ink = tuple(ink, ink, ink)
     if ink:
         ink = "white"
     else:
         ink = "black"
-    draw.text((10, height-75), title, ink,font=font)
+    draw.text((10, height - 75), title, ink, font=font)
     return img
 
 
 _showArrayCounter = 0
+
+
 def _show_array(*args):
     global _showArrayCounter
     _showArrayCounter += 1
@@ -291,12 +309,12 @@ def _show_array(*args):
             array = array.astype(np.uint8)
     img = Image.fromarray(array)
     shape = array.shape
-    font = ImageFont.truetype("/Library/Fonts/AppleGothic.ttf",25)
+    font = ImageFont.truetype("/Library/Fonts/AppleGothic.ttf", 25)
     draw = ImageDraw.Draw(img)
     try:
-        pixels = [img.getpixel((x,15)) for x in range(10,30)]
+        pixels = [img.getpixel((x, 15)) for x in range(10, 30)]
         pixels = np.array(pixels)
-        darkness = pixels.sum()/pixels.size
+        darkness = pixels.sum() / pixels.size
         if darkness < 128:
             ink = 255
         else:
@@ -306,64 +324,70 @@ def _show_array(*args):
     if len(shape) > 2:
         ink = [ink] * shape[-1]
         ink = tuple(ink)
-    draw.text((10, 10), title, ink,font=font)
-    return title,img
+    draw.text((10, 10), title, ink, font=font)
+    return title, img
 
-def show_array(*args):
-   title,img =  _show_array(*args)
-   img.show()
 
-def show_arraygrad(title, image, theta, grad=None):
-    from PIL import ImageDraw #@UnresolvedImport
-    title,img = _show_array(title, image)
+def show_array(*args: List[Any]):
+    title, img = _show_array(*args)
+    img.show()
+
+
+def show_arraygrad(title: str, image: Array, theta: Array, grad: Optional[Array] = None):
+    from PIL import ImageDraw  # @UnresolvedImport
+    title, img = _show_array(title, image)
     img = img.convert("RGB")
     draw = ImageDraw.Draw(img)
     width, height = img.size
     if grad is None:
         grad = np.zeros_like(theta)
-        grad[:,:] = 5
+        grad[:, :] = 5
     else:
         grad = grad.copy()
         grad -= grad.min()
         if grad.max() != 0.0:
             grad /= grad.max()
         grad *= 10
-    cos = np.cos(theta*3.14159)
-    sin = np.sin(theta*3.14159)
-    for x in range(10,width-10,5):
-        for y in range(10,height-10,5):
-            i,j  =y, x
-            dx = grad[i,j] * sin[i,j]
-            dy = grad[i,j] * cos[i,j]
+    cos = np.cos(theta * 3.14159)
+    sin = np.sin(theta * 3.14159)
+    for x in range(10, width - 10, 5):
+        for y in range(10, height - 10, 5):
+            i, j = y, x
+            dx = grad[i, j] * sin[i, j]
+            dy = grad[i, j] * cos[i, j]
             try:
-                x1,y1 = int(x-dx), int(y-dy)
-                x2,y2 = int(x+dx), int(y+dy)
+                x1, y1 = int(x - dx), int(y - dy)
+                x2, y2 = int(x + dx), int(y + dy)
             except ValueError:
                 # Nans happen
                 continue
-            a,b,c = img.getpixel((x,y))
-            grey = (a+b+c)//3
+            a, b, c = img.getpixel((x, y))
+            grey = (a + b + c) // 3
             if grey > 128:
-                color="black"
+                color = "black"
             else:
                 color = "white"
-            draw.line([(x1,y1),(x2,y2)],fill=color)
+            draw.line([(x1, y1), (x2, y2)], fill=color)
     img.show()
+
 
 class Shaper:
     def __init__(self, data):
         assert len(data.shape) == 2, "Shaper requires 2-d data"
         self.shape = data.shape
         self.order = None
-        self.data = data[:,:]
+        self.data = data[:, :]
+
     def update(self, data):
         assert self.data.shape == data.shape, "Must conform"
         self.data = data
+
     def asimage(self):
         if self.order:
-            self.data = self.data.reshape(self.shape,order=self.order)
+            self.data = self.data.reshape(self.shape, order=self.order)
             self.order = None
         return self.data
+
     def asrows(self):
         if self.order == 'C':
             return self.data
@@ -373,6 +397,7 @@ class Shaper:
             self.order = 'C'
             self.data = self.data.reshape(-1, order=self.order)
             return self.data
+
     def ascols(self):
         if self.order == 'F':
             return self.data
@@ -383,74 +408,73 @@ class Shaper:
             self.data = self.data.reshape(-1, order=self.order)
         return self.data
 
-def histeq_large(im,nbr_bins=2**16):
-    #get image histogram
-    imhist,bins = np.histogram(im.flatten(),nbr_bins,normed=True)
+
+def histeq_large(im: Array, nbr_bins=2 ** 16) -> Array:
+    # get image histogram
+    imhist, bins = np.histogram(im.flatten(), nbr_bins, normed=True)
     imhist[0] = 0
-   
-    cdf = imhist.cumsum() #cumulative distribution function
+
+    cdf = imhist.cumsum()  # cumulative distribution function
     # TODO: And here we have a non-linear something or other
     cdf ** .5
     # TODO: This normalization looks wrong for a different number of bins.
-    cdf = (2**16-1) * cdf / cdf[-1] #normalize
+    cdf = (2 ** 16 - 1) * cdf / cdf[-1]  # normalize
 
-    #cdf = cdf / (2**16.)  #normalize
-    #use linear interpolation of cdf to find new pixel values
-    im2 = np.interp(im.flatten(),bins[:-1],cdf)
-    return np.array(im2,  np.float32).reshape(im.shape)
+    # cdf = cdf / (2**16.)  #normalize
+    # use linear interpolation of cdf to find new pixel values
+    im2 = np.interp(im.flatten(), bins[:-1], cdf)
+    return np.array(im2, np.float32).reshape(im.shape)
 
-def histeq(im,nbr_bins=256):
-    imhist,bins = np.histogram(im.flatten(),nbr_bins,normed=True)
-    cdf = imhist.cumsum() #cumulative distribution function
-    cdf = 255 * cdf / cdf[-1] #normalize
-    im2 = np.interp(im.flatten(),bins[:-1],cdf)
+
+def histeq(im: Array, nbr_bins: int = 256) -> Tuple[Array, Array]:
+    imhist, bins = np.histogram(im.flatten(), nbr_bins, normed=True)
+    cdf = imhist.cumsum()  # cumulative distribution function
+    cdf = 255 * cdf / cdf[-1]  # normalize
+    im2 = np.interp(im.flatten(), bins[:-1], cdf)
     return im2.reshape(im.shape), cdf
 
-ALIGNMENT=4
-def align_image(image, alignment=ALIGNMENT):
-    assert len(image.shape) in (2,3)
-    width,height = image.shape[:2]
-    oddw,oddh = width % alignment, height % alignment
-    if oddw==0 and oddh==0:
+
+ALIGNMENT = 4
+
+
+def align_image(image: Array, alignment: int = ALIGNMENT) -> Array:
+    assert len(image.shape) in (2, 3)
+    width, height = image.shape[:2]
+    oddw, oddh = width % alignment, height % alignment
+    if oddw == 0 and oddh == 0:
         return image.copy()
-    evenw = width-oddw if oddw else width
-    evenh = height-oddh if oddh else height
+    evenw = width - oddw if oddw else width
+    evenh = height - oddh if oddh else height
     if len(image.shape) == 2:
-        aligned = np.empty((evenw,evenh), dtype=image.dtype)
-        aligned[:,:] = image[:evenw,:evenh]
+        aligned = np.empty((evenw, evenh), dtype=image.dtype)
+        aligned[:, :] = image[:evenw, :evenh]
     else:
-        aligned = np.empty((evenw,evenh,image.shape[2]), dtype=image.dtype)
-        aligned[:,:,:] = image[:evenw,:evenh,:]
+        aligned = np.empty((evenw, evenh, image.shape[2]), dtype=image.dtype)
+        aligned[:, :, :] = image[:evenw, :evenh, :]
     return aligned
 
-def normalize(a):
-    a = a-a.min()
-    a = a/(a.max()*1.000001)
+
+def normalize(a: Array) -> Array:
+    a = a - a.min()
+    a = a / (a.max() * 1.000001)
     return a
 
 
-def set_margin(a, margin, value=0.0):
-    a[:,-margin:] = value
-    a[:,:margin] = value
-    a[-margin:,:] = value
-    a[:margin,:] = value
+def set_margin(a: Array, margin: int, value: Optional[float] = 0.0) -> None:
+    a[:, -margin:] = value
+    a[:, :margin] = value
+    a[-margin:, :] = value
+    a[:margin, :] = value
 
-def set_frame(a, width, frame=1.0, margin=0.0):
+
+def set_frame(a: Array, width: int, frame: Optional[float] = 1.0, margin: Optional[float] = 0.0) -> None:
     set_margin(a, width, margin)
-    a[0,:] = frame
-    a[:,0] = frame
-    a[-1,:] = frame
-    a[:,-1] = frame
+    a[0, :] = frame
+    a[:, 0] = frame
+    a[-1, :] = frame
+    a[:, -1] = frame
     # TODO: should not include corners
-    a[margin,:] = frame
-    a[:,margin] = frame
-    a[-margin,:] = frame
-    a[:,-margin] = frame
-    
-
-
-if __name__ == "__main__":
-    # TODO: Add tests here
-    pass
-
-    
+    a[margin, :] = frame
+    a[:, margin] = frame
+    a[-margin, :] = frame
+    a[:, -margin] = frame

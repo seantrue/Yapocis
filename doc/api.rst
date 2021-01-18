@@ -5,10 +5,10 @@ API Reference
 rpc.kernels
 -----------
 
-Most developers will only use the loadProgram method, and possibly the getEngine method.
+Most developers will only use the load_program method, and possibly the get_engine method.
 
 .. automodule:: rpc.kernels
-   :members: loadProgram,getEngine
+   :members: load_program,get_engine
 
 rpc.interfaces
 --------------
@@ -23,5 +23,5 @@ rpc.interfacecl_parser
 ----------------------
 
 .. automodule:: rpc.interfacecl_parser
-   :members: getInterfaceCL
+   :members: get_interface
 

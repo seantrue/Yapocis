@@ -88,12 +88,16 @@ def test_hsi():
     rgb = join_channels(r, g, b)
     rgb /= 255.0
     show_array("Test data", rgb)
-    rgb2 = join_channels(*split_channels(rgb))
+    r,g,b = split_channels(rgb)
+    rgb2 = join_channels(r,g,b)
     show_array("Test split and join", rgb2)
-    h, s, i = rgb2hsi(*split_channels(rgb))
+    h, s, i = rgb2hsi(r,g,b)
     show_array("I", i)
     show_array("H", h)
     show_array("S", s)
+    r,g,b = hsi2rgb(h,s,i)
+    rgb3  = join_channels(r,g,b)
+    show_array("from HSI", rgb3)
     print(program)
 
 def test_median3():

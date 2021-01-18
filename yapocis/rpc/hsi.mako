@@ -1,79 +1,34 @@
-#define eps FLT_EPSILON
-#define pi 1.0f
-#define UNSAT .001f
-
-__constant float pi1o3 = (pi/3.0);
-__constant float pi2o3 = (2.0*pi/3.0);
-__constant float pi4o3 = (4.0*pi/3.0);
-__constant float pi5o3 = (5.0*pi/3.0);
+//https://stackoverflow.com/questions/15095909/from-rgb-to-hsv-in-opengl-glsl
+#define eps 1.0e-10
 
 __kernel
-void rgb2hsi(__global float *ra, __global float *ga, __global float *ba, __global float *ha, __global float *sa, __global float *ia, __global float *trace) {
-     size_t i = get_global_id(0);
-     float r = ra[i];
-     float b = ba[i];
-     float g = ga[i];
-     float H,S,I;
-     float rlb = r-b;
-     float rlg = r-g;
-     float glb = g-b;
-     float num = 0.5*(rlg + rlb);
-     float den = sqrt((rlg*rlg) + (rlb*glb));
-     H = acospi(num/(den + eps));
-     H = b<=g ? H : (2*pi)-H;
-     H = H*0.5;
-     trace[i] = H;
-     
-    num = r < g ? r : g;
-    num = r < b ? r : b;
-    den = r + g + b;
-    den = den <= eps ? eps : den;
-    S = 1 - 3.* num/den; 
-    H = S==0 ? 0 : H;
-    I = (r + g + b) * (1.0/3.0); 
-    
-    //S = I < eps ?  0.0 : S;
-    //H = I < eps ?  0.0 : H;
-
-    ha[i] = clamp(H, 0.0f, 1.0f-eps);
-    sa[i] = clamp(S, 0.0f, 1.0f-eps);
-    ia[i] = clamp(I, 0.0f, 1.0f-eps);
+void rgb2hsi(__global float *ra, __global float *ga, __global float *ba, __global float *ha, __global float *sa, __global float *ia) {
+    size_t i = get_global_id(0);
+    float3 c = (float3)(ra[i], ba[i], ga[i]);
+    float4 K = (float4)(0.0f, -1.0f / 3.0f, 2.0f / 3.0f, -1.0f);
+    float4 p = c.y < c.z ? (float4)(c.zy,K.wz) : (float4)(c.yz, K.xy);
+    float4 q = c.x < p.x ? (float4)(p.xyw, c.x) : (float4)(c.x, p.yzx);
+    float d = q.x - min(q.w, q.y);
+    float hh = q.z + (q.w - q.y) / (6.0f * d + eps);
+    hh = hh < 0.0 ? -hh : hh;
+    float3 hsi = (float3)(hh , d / (q.x + eps), q.x);
+    hsi = clamp(hsi, 0.0f, 1.0f-eps);
+    ha[i] = hsi.x;
+    sa[i] = hsi.y;
+    ia[i] = hsi.z;
 }
 
-
-__inline float ratio(float H, float angle1, float angle2) {
-	return cospi(H-angle1)/cospi(angle2-H);
-}
 
 __kernel	
 void hsi2rgb(__global float *ha, __global float *sa, __global float *ia, __global float *ra, __global float *ga, __global float *ba) {
 	size_t i = get_global_id(0);
-	float H = ha[i]*2.0*pi;
-	float S = sa[i];
-	float I = ia[i];
-	float R,G,B;
-	bool sector;
-	
-    B = I * (1.0-S);
-    R = I * (1.0 + (S*cospi(H)/cospi(pi1o3-H))); 
-    G = 3.0*I - (R+B);
+	float3 hsi = (float3)(ha[i],sa[i],ia[i]);
 
-    sector = ((pi2o3 <= H) && (H < pi4o3)); 
-    R = sector ? I * (1.0-S) : R;
-    G = sector ? (I * (1.0 + (S*ratio(H,pi2o3,pi-H)))) : G;
-    B = sector ? 3.0*I - (R+G) :B;
-     
-    sector = ((pi4o3 <= H) && (H < pi2o3));
-    G = sector ? I * (1.0-S) : G;
-    B = sector ? I * (1.0 + (S*ratio(H,pi4o3,pi5o3-H))) : B;
-    R = sector ? 3.0*I - (G+B) : R;
-
-    R = S < UNSAT ? I : R;
-    G = S < UNSAT ? I : G;
-    B = S < UNSAT ? I : B;
-    
-    R = G = B = 0.0;
-    ra[i] = clamp(R, 0.0f, 1.0f-eps);
-    ga[i] = clamp(G, 0.0f, 1.0f-eps);
-    ba[i] = clamp(B, 0.0f, 1.0f-eps);
+    float4 K = (float4)(1.0f, 1.0f / 3.0f, 2.0f / 3.0f, 3.0f);
+    float3 floorv;
+    float3 p = fabs(fract(hsi.xxx + K.xyz, &floorv) * 6.0f - K.www);
+    float3 c =  hsi.z * mix(K.xxx, clamp(p - K.xxx, 0.0f, 1.0f), hsi.y);
+    ra[i] = c.x;
+    ga[i] = c.y;
+    ba[i] = c.z;
 }

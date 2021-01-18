@@ -72,7 +72,7 @@ median3x3 = """
 # Conversion to and from Hue/Saturation/Intensity color space
 hsi = """
     interface hsi {
-        kernel rgb2hsi(in float *r, in float *g, in float *b, outlike r, outlike r, outlike r, outlike r);
+        kernel rgb2hsi(in float *r, in float *g, in float *b, outlike r, outlike r, outlike r);
         kernel hsi2rgb(in float *h, in float *s, in float *i, outlike h, outlike h, outlike h);
     };
 """
@@ -90,4 +90,11 @@ gradient = """
         kernel gradient(widthof int input, heightof int input, in float* input, in int reach,  outlike input, outlike input );
         alias gradient_res as gradient(widthof int input, heightof int input, resident float* input, in int reach, resident float *grad, resident float *theta );
     };
+"""
+
+peronamalik = """
+    interface peronamalik {
+        kernel filterImage(widthof input, heightof input, in float *input, in float scale, in float size_step, outlike input);
+        alias filterImage_res as filterImage(widthof input, heightof input, resident float *input, in float scale, in float size_step, resident float *output);
+        };
 """
